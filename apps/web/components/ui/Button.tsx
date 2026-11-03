@@ -21,12 +21,12 @@ export function Button({
   href,
   children,
   variant = "primary",
-  className = "",
+  className = "inline-flex px-5 py-2.5 text-sm",
 }: ButtonProps) {
   return (
     <Link
       href={href}
-      className={`inline-flex items-center justify-center rounded-[10px] px-5 py-2.5 text-sm font-bold transition-colors ${variants[variant]} ${className}`}
+      className={`items-center justify-center rounded-[10px] font-bold transition-colors ${variants[variant]} ${className}`}
     >
       {children}
     </Link>

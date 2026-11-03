@@ -36,10 +36,14 @@ export default function NotFound() {
           </p>
 
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <Button href="/" className="px-6 py-3">
+            <Button href="/" className="inline-flex px-6 py-3 text-sm">
               На главную
             </Button>
-            <Button href="/login" variant="secondary" className="px-6 py-3">
+            <Button
+              href="/login"
+              variant="secondary"
+              className="inline-flex px-6 py-3 text-sm"
+            >
               Войти в аккаунт
             </Button>
           </div>

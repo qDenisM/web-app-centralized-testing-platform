@@ -69,7 +69,7 @@ export function Footer() {
             <p className="mb-3 text-xs leading-relaxed text-text-muted">
               Создайте аккаунт и узнайте, куда хватает баллов.
             </p>
-            <Button href="/register" className="px-4 py-2">
+            <Button href="/register" className="inline-flex px-4 py-2 text-sm">
               Начать бесплатно
             </Button>
             <p className="mt-4 text-[11px] text-text-muted">

@@ -102,10 +102,14 @@ export default function HomePage() {
               </p>
 
               <div className="flex flex-wrap items-center gap-3 pt-1">
-                <Button href="/register" className="px-6 py-3">
+                <Button href="/register" className="inline-flex px-6 py-3 text-sm">
                   Начать бесплатно
                 </Button>
-                <Button href="/login" variant="secondary" className="px-6 py-3">
+                <Button
+                  href="/login"
+                  variant="secondary"
+                  className="inline-flex px-6 py-3 text-sm"
+                >
                   Войти в аккаунт
                 </Button>
               </div>
@@ -215,7 +219,7 @@ export default function HomePage() {
               Подай заявку на тестирование и дождись результатов
             </p>
             <div className="pt-2">
-              <Button href="/login" className="px-8 py-3">
+              <Button href="/login" className="inline-flex px-8 py-3 text-sm">
                 Перейти в личный кабинет
               </Button>
             </div>
