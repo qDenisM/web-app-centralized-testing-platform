@@ -31,12 +31,12 @@
   --color-bg-page: var(--bg-page);
   --color-bg-card: var(--bg-card);
   --color-border: var(--border);
-  --font-sans: var(--font-manrope);
+  --font-sans: var(--font-open-sans);
 }
 
 body {
   background: var(--bg-page);
   color: var(--text-primary);
-  font-family: var(--font-manrope), system-ui, sans-serif;
+  font-family: var(--font-open-sans), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
