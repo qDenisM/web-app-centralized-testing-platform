@@ -17,7 +17,7 @@ export function InfoCard({
   variant = "muted",
 }: InfoCardProps) {
   return (
-    <div className={`rounded-[12px] border p-5 ${variants[variant]}`}>
+    <div className={`rounded-xl border p-5 ${variants[variant]}`}>
       {number ? (
         <span className="text-3xl font-black text-brand-500">{number}</span>
       ) : null}
