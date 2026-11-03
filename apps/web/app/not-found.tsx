@@ -31,18 +31,9 @@ export default function NotFound() {
           </h1>
 
           <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-text-secondary">
-            Такой страницы в Ориентире нет. Возможно, ссылка устарела или в адресе
-            опечатка. Вернись на главную и продолжай готовиться к поступлению.
+            Такой страницы нет. Возможно, ссылка устарела или в адресе
+            опечатка.
           </p>
-
-          <div className="mx-auto mt-8 max-w-md rounded-[12px] border border-border bg-white p-4 text-left shadow-[var(--shadow-soft)]">
-            <p className="text-xs font-bold text-brand-900">Куда можно пойти</p>
-            <ul className="mt-2 space-y-1.5 text-xs text-text-secondary">
-              <li>• главная — оценить шансы поступления</li>
-              <li>• вход — открыть личный кабинет</li>
-              <li>• регистрация — создать аккаунт абитуриента</li>
-            </ul>
-          </div>
 
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Button href="/" className="px-6 py-3">
