@@ -4,9 +4,9 @@ import { Container } from "@/components/ui/Container";
 import { Logo } from "./Logo";
 
 const navLinks = [
-  { href: "#how", label: "Как это работает" },
-  { href: "#features", label: "Возможности" },
-  { href: "#faq", label: "FAQ" },
+  { href: "/#how", label: "Как это работает" },
+  { href: "/#features", label: "Возможности" },
+  { href: "/#faq", label: "FAQ" },
 ];
 
 export function Header() {

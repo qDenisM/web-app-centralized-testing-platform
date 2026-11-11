@@ -3,9 +3,9 @@ import { Container } from "@/components/ui/Container";
 import { Logo } from "./Logo";
 
 const serviceLinks = [
-  { href: "#how", label: "Как это работает" },
-  { href: "#features", label: "Возможности" },
-  { href: "#faq", label: "Частые вопросы" },
+  { href: "/#how", label: "Как это работает" },
+  { href: "/#features", label: "Возможности" },
+  { href: "/#faq", label: "Частые вопросы" },
 ];
 
 const applicantLinks = [
