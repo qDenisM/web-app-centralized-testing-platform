@@ -8,7 +8,6 @@ export async function POST() {
   const refreshToken = cookieStore.get(REFRESH_COOKIE)?.value;
 
   if (refreshToken) {
-    // Даже если identity недоступен — cookies всё равно чистим.
     await identityPost("/auth/logout", { refreshToken }).catch(() => null);
   }
 

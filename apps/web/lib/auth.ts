@@ -4,7 +4,6 @@ export const ACCESS_COOKIE = "access_token";
 export const REFRESH_COOKIE = "refresh_token";
 export const ROLE_COOKIE = "auth_role";
 
-/** Как в identity-service по умолчанию. */
 export const ACCESS_MAX_AGE_SEC = 15 * 60;
 export const REFRESH_MAX_AGE_SEC = 7 * 24 * 60 * 60;
 
@@ -44,7 +43,6 @@ function cookieSecure(): boolean {
   return process.env.NODE_ENV === "production";
 }
 
-/** Кладём токены в httpOnly cookies (браузер JS их не видит). */
 export function setAuthCookies(
   res: NextResponse,
   tokens: AuthTokens,
@@ -67,7 +65,6 @@ export function setAuthCookies(
     maxAge: REFRESH_MAX_AGE_SEC,
   });
 
-  // Роль нужна proxy для редиректов; не секрет, но тоже httpOnly.
   res.cookies.set(ROLE_COOKIE, role, {
     ...common,
     maxAge: REFRESH_MAX_AGE_SEC,
@@ -91,11 +88,9 @@ export function clearAuthCookies(res: NextResponse): void {
 function decodeBase64Url(value: string): string {
   const padded = value + "=".repeat((4 - (value.length % 4)) % 4);
   const b64 = padded.replace(/-/g, "+").replace(/_/g, "/");
-  // atob — чтобы работало и в Edge (proxy), и в Node.
   return atob(b64);
 }
 
-/** Грубый разбор payload JWT без проверки подписи (только для UI-редиректов). */
 export function peekJwtRole(token: string | undefined): string | null {
   if (!token) return null;
   const parts = token.split(".");

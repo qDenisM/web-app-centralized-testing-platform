@@ -88,4 +88,11 @@ npm run dev                  # http://localhost:3000
 
 Демо-логины — из seed identity (`applicant@demo.local` / `Applicant1!` и др.).
 
+Локально проверить прод-сборку:
+
+```bash
+cd apps/web
+npm run build
+```
+
 Остальные сервисы в `apps/` пока stubs и в Compose не поднимаются.

@@ -1,4 +1,3 @@
-/** Базовый URL identity-service для BFF (только сервер). */
 export function getIdentityUrl(): string {
   return process.env.IDENTITY_URL?.replace(/\/$/, "") || "http://localhost:3001";
 }
@@ -8,7 +7,6 @@ type IdentityErrorBody = {
   code?: string;
 };
 
-/** POST в identity и разбор JSON / текста ошибки. */
 export async function identityPost<T>(
   path: string,
   body: unknown,
