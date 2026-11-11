@@ -1,0 +1,19 @@
+# Базовый Traefik для локальной разработки (Этап 0).
+# Маршруты к apps добавятся labels в docker-compose на следующих этапах.
+
+api:
+  dashboard: true
+  insecure: true
+
+entryPoints:
+  web:
+    address: ":80"
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    network: abiturent
+
+log:
+  level: INFO

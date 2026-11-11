@@ -1,0 +1,130 @@
+name: abiturent
+
+networks:
+  abiturent:
+    name: abiturent
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+  minio_data:
+
+services:
+  traefik:
+    image: traefik:v3.3
+    container_name: abiturent-traefik
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - abiturent
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: abiturent-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: abiturent
+      POSTGRES_PASSWORD: abiturent
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init-databases.sql:/docker-entrypoint-initdb.d/01-init-databases.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U abiturent -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - abiturent
+
+  redis:
+    image: redis:7-alpine
+    container_name: abiturent-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - abiturent
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: abiturent-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: abiturent
+      RABBITMQ_DEFAULT_PASS: abiturent
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    networks:
+      - abiturent
+
+  minio:
+    image: pgsty/silo:RELEASE.2026-09-16T00-00-00Z
+    container_name: abiturent-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: abiturent
+      MINIO_ROOT_PASSWORD: abiturent_secret
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000" 
+      - "9001:9001" 
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - abiturent
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8-alpine
+    container_name: abiturent-clickhouse
+    restart: unless-stopped
+    environment:
+      CLICKHOUSE_DB: analytics
+      CLICKHOUSE_USER: abiturent
+      CLICKHOUSE_PASSWORD: abiturent
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    ports:
+      - "8123:8123" 
+      - "9009:9000"
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks:
+      - abiturent
