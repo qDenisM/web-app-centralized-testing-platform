@@ -15,7 +15,6 @@ function extractBearer(req: Request): string | null {
   return token;
 }
 
-/** Middleware: читает Bearer JWT, кладёт payload в `req.user`. */
 export function authenticate(options: VerifyJwtOptions): RequestHandler {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -41,10 +40,6 @@ export function authenticate(options: VerifyJwtOptions): RequestHandler {
   };
 }
 
-/**
- * Проверка роли после `authenticate`.
- * Пример: `requireRole("admin", "moderator")`
- */
 export function requireRole(...roles: Role[]): RequestHandler {
   const allowed = new Set(roles);
 

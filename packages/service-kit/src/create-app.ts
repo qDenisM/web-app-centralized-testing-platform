@@ -11,13 +11,9 @@ import { createLogger } from "./logger.js";
 import { errorHandler, notFoundHandler } from "./error-handler.js";
 
 export type CreateAppOptions = {
-  /** Имя сервиса в логах и health */
   serviceName: string;
-  /** Доп. маршруты (auth, domain routes) */
   routes?: Router | RequestHandler;
-  /** Уровень логов */
   logLevel?: string;
-  /** Свой logger (иначе создаётся внутри) */
   logger?: Logger;
 };
 
@@ -26,10 +22,6 @@ export type CreatedApp = {
   logger: Logger;
 };
 
-/**
- * Общий каркас Express-сервиса:
- * helmet → json → request log → GET /health → routes → 404 → error handler.
- */
 export function createApp(options: CreateAppOptions): CreatedApp {
   const logger =
     options.logger ??

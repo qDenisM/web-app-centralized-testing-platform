@@ -4,10 +4,6 @@ import { AppError } from "./errors.js";
 
 type RequestPart = "body" | "query" | "params";
 
-/**
- * Валидация части запроса Zod-схемой из `@abiturent/contracts`.
- * Пример: `validate(LoginRequestSchema)` или `validate(schema, "query")`.
- */
 export function validate(
   schema: ZodTypeAny,
   part: RequestPart = "body",
@@ -19,7 +15,6 @@ export function validate(
       return;
     }
 
-    // Express типизирует query/params как строки; после zod можно подменить значение.
     (req as Request & Record<RequestPart, unknown>)[part] = parsed.data;
     next();
   };

@@ -2,5 +2,38 @@
   "name": "@abiturent/identity-service",
   "version": "0.1.0",
   "private": true,
-  "description": "Stub for Stage 0 — реализация на следующих этапах"
+  "type": "module",
+  "description": "Identity service: users, sessions, JWT RS256 / JWKS",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prisma:generate": "prisma generate",
+    "migrate": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
+    "seed": "prisma db seed",
+    "keys:generate": "node scripts/generate-keys.mjs"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@abiturent/auth": "0.1.0",
+    "@abiturent/contracts": "0.1.0",
+    "@abiturent/service-kit": "0.1.0",
+    "@prisma/client": "^6.5.0",
+    "argon2": "^0.41.1",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jose": "^6.0.10",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.1",
+    "@types/node": "^22.13.10",
+    "prisma": "^6.5.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
 }

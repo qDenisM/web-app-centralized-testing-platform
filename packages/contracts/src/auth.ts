@@ -12,7 +12,6 @@ export const RegisterRequestSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8).max(128),
   fullName: z.string().min(2).max(200),
-  /** На регистрации по умолчанию только абитуриент; остальные роли выдаёт админ. */
   role: RoleSchema.default("applicant").optional(),
 });
 
@@ -41,3 +40,23 @@ export const LoginResponseSchema = z.object({
 });
 
 export type LoginResponse = z.infer<typeof LoginResponseSchema>;
+
+export const RefreshRequestSchema = z.object({
+  refreshToken: z.string().min(1),
+});
+
+export type RefreshRequest = z.infer<typeof RefreshRequestSchema>;
+
+export const LogoutRequestSchema = z.object({
+  refreshToken: z.string().min(1),
+});
+
+export type LogoutRequest = z.infer<typeof LogoutRequestSchema>;
+
+export const BlockUserRequestSchema = z.object({
+  reason: z.string().min(2).max(500),
+  blockedUntil: z.string().datetime().optional().nullable(),
+});
+
+export type BlockUserRequest = z.infer<typeof BlockUserRequestSchema>;
+

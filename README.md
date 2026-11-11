@@ -48,7 +48,23 @@ npm run infra:up
 npm run infra:down
 ```
 
-## Дальше
+## Этап 1: identity-service
 
-Этап 1 — `identity-service` (Prisma, register/login, JWKS).  
-Сервисы в `apps/` пока stubs и в Compose не поднимаются.
+```bash
+# инфру (Postgres) уже должна быть поднята: npm run infra:up
+cd apps/identity-service
+cp .env.example .env
+npm run keys:generate
+npm run migrate        # prisma migrate + generate
+npm run seed
+npm run dev            # http://localhost:3001
+```
+
+Из корня: `npm run dev:identity`.
+
+Демо-пользователи после seed: см. вывод `npm run seed`  
+(`applicant@demo.local` / `Applicant1!`, …).
+
+JWKS: `GET http://localhost:3001/.well-known/jwks.json`
+
+Остальные сервисы в `apps/` пока stubs и в Compose не поднимаются.

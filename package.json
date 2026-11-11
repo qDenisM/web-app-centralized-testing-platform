@@ -7,7 +7,8 @@
   ],
   "scripts": {
     "build:packages": "npm run build -w @abiturent/contracts && npm run build -w @abiturent/auth && npm run build -w @abiturent/service-kit",
-    "typecheck": "npm run typecheck -w @abiturent/contracts && npm run typecheck -w @abiturent/auth && npm run typecheck -w @abiturent/service-kit",
+    "typecheck": "npm run typecheck -w @abiturent/contracts && npm run typecheck -w @abiturent/auth && npm run typecheck -w @abiturent/service-kit && npm run typecheck -w @abiturent/identity-service",
+    "dev:identity": "npm run dev -w @abiturent/identity-service",
     "infra:up": "docker compose -f infra/docker-compose.yml up -d",
     "infra:down": "docker compose -f infra/docker-compose.yml down",
     "infra:logs": "docker compose -f infra/docker-compose.yml logs -f"

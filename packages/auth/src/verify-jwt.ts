@@ -4,11 +4,8 @@ import { getJwks } from "./jwks.js";
 import type { JwtPayload } from "./types.js";
 
 export type VerifyJwtOptions = {
-  /** URL JWKS identity-service */
   jwksUrl: string;
-  /** Ожидаемый issuer (например https://identity.local) */
   issuer?: string;
-  /** Ожидаемый audience */
   audience?: string | string[];
 };
 
@@ -32,7 +29,6 @@ function toJwtPayload(payload: JWTPayload): JwtPayload {
   };
 }
 
-/** Проверка access JWT по публичным ключам из JWKS. */
 export async function verifyJwt(
   token: string,
   options: VerifyJwtOptions,
