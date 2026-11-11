@@ -67,4 +67,25 @@ npm run dev            # http://localhost:3001
 
 JWKS: `GET http://localhost:3001/.well-known/jwks.json`
 
+## Этап 2: web auth (BFF + cookies)
+
+В одном терминале — identity (см. Этап 1). В другом:
+
+```bash
+cd apps/web
+cp .env.example .env.local   # IDENTITY_URL=http://localhost:3001
+npm run dev                  # http://localhost:3000
+```
+
+Из корня: `npm run dev:web`.
+
+| URL | Назначение |
+|-----|------------|
+| http://localhost:3000/login | вход |
+| http://localhost:3000/register | регистрация абитуриента |
+| http://localhost:3000/app | кабинет (после логина) |
+| `/api/auth/login\|register\|refresh\|logout` | BFF → identity, httpOnly cookies |
+
+Демо-логины — из seed identity (`applicant@demo.local` / `Applicant1!` и др.).
+
 Остальные сервисы в `apps/` пока stubs и в Compose не поднимаются.
