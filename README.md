@@ -88,6 +88,17 @@ npm run dev                  # http://localhost:3000
 
 Демо-логины — из seed identity (`applicant@demo.local` / `Applicant1!` и др.).
 
+## Деплой web на Vercel
+
+На Vercel деплоится только `apps/web` (лендинг + login/register + BFF). Identity и Postgres на Vercel не поднимаются — для логина нужен отдельно задеплоенный `IDENTITY_URL`.
+
+1. Импортируй репозиторий в [vercel.com](https://vercel.com)
+2. **Root Directory** → `apps/web` (важно для monorepo)
+3. Framework Preset: Next.js (подхватится сам)
+4. Env Variables (Production):
+   - `IDENTITY_URL` = публичный URL identity-service (пока можно не задавать — сайт откроется, login/register без бэка не сработают)
+5. Deploy
+
 Локально проверить прод-сборку:
 
 ```bash
