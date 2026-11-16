@@ -7,7 +7,10 @@ import {
   type ExamApplication,
 } from "@/lib/exam";
 import { cn } from "@/lib/utils";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { Drawer } from "@/components/ui/Drawer";
 import { FormButton } from "@/components/ui/FormButton";
+import { Modal } from "@/components/ui/Modal";
 
 type Tab = "pending" | "approved" | "rejected" | "all";
 
@@ -21,6 +24,13 @@ type QueueResponse = {
   };
 };
 
+const REJECT_REASONS = [
+  { value: "docs", label: "Неполный пакет документов" },
+  { value: "passport", label: "Паспортные данные не подтверждены" },
+  { value: "duplicate", label: "Дублирующая запись на сеанс" },
+  { value: "other", label: "Другое" },
+];
+
 export function ModeratorCtApplications() {
   const [tab, setTab] = useState<Tab>("pending");
   const [data, setData] = useState<QueueResponse | null>(null);
@@ -28,6 +38,11 @@ export function ModeratorCtApplications() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
+  const [reviewApp, setReviewApp] = useState<ExamApplication | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<ExamApplication | null>(null);
+  const [rejectReasonKey, setRejectReasonKey] = useState(REJECT_REASONS[0].value);
+  const [rejectComment, setRejectComment] = useState("");
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -68,7 +83,15 @@ export function ModeratorCtApplications() {
     });
   }
 
-  async function decide(id: string, decision: "approved" | "rejected") {
+  function rejectReasonText() {
+    const base =
+      REJECT_REASONS.find((r) => r.value === rejectReasonKey)?.label || "";
+    return rejectComment.trim()
+      ? `${base}: ${rejectComment.trim()}`
+      : base;
+  }
+
+  async function decide(id: string, decision: "approved" | "rejected", reason?: string) {
     setBusy(true);
     setError(null);
     try {
@@ -77,7 +100,7 @@ export function ModeratorCtApplications() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           decision,
-          reason: decision === "rejected" ? "Не соответствует требованиям" : undefined,
+          reason: decision === "rejected" ? reason : undefined,
         }),
       });
       const json = (await res.json().catch(() => ({}))) as { error?: string };
@@ -85,6 +108,8 @@ export function ModeratorCtApplications() {
         setError(json.error || "Не удалось принять решение");
         return;
       }
+      setRejectTarget(null);
+      setReviewApp(null);
       await load();
     } catch {
       setError("Ошибка сети при решении по заявке");
@@ -108,6 +133,7 @@ export function ModeratorCtApplications() {
         setError(json.error || "Не удалось одобрить пакетно");
         return;
       }
+      setBulkOpen(false);
       await load();
     } catch {
       setError("Ошибка сети при пакетном одобрении");
@@ -138,10 +164,10 @@ export function ModeratorCtApplications() {
           <FormButton
             type="button"
             className="w-auto"
-            onClick={() => void approveBatch()}
+            onClick={() => setBulkOpen(true)}
             disabled={busy}
           >
-            Одобрить выбранные ({selected.size})
+            Массовое одобрение ({selected.size})
           </FormButton>
         ) : null}
       </div>
@@ -182,7 +208,7 @@ export function ModeratorCtApplications() {
           <table className="w-full text-left text-sm">
             <thead className="border-b border-border bg-[#f8fafc] text-xs uppercase tracking-wide text-text-muted">
               <tr>
-                {tab === "pending" ? <th className="px-4 py-3 w-10" /> : null}
+                {tab === "pending" ? <th className="w-10 px-4 py-3" /> : null}
                 <th className="px-4 py-3">Абитуриент</th>
                 <th className="px-4 py-3">Сессия</th>
                 <th className="px-4 py-3">Статус</th>
@@ -216,28 +242,39 @@ export function ModeratorCtApplications() {
                     {row.passNumber ? ` · ${row.passNumber}` : ""}
                   </td>
                   <td className="px-4 py-3">
-                    {row.status === "pending" ? (
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => void decide(row.id, "approved")}
-                          className="rounded-[8px] bg-brand-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-800 disabled:opacity-60"
-                        >
-                          Одобрить
-                        </button>
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => void decide(row.id, "rejected")}
-                          className="rounded-[8px] border border-border px-3 py-1.5 text-xs font-bold text-text-secondary hover:bg-[#f8fafc] disabled:opacity-60"
-                        >
-                          Отклонить
-                        </button>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-text-muted">—</span>
-                    )}
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setReviewApp(row)}
+                        className="rounded-[8px] border border-border px-3 py-1.5 text-xs font-bold text-brand-800 hover:bg-brand-50"
+                      >
+                        Рассмотреть
+                      </button>
+                      {row.status === "pending" ? (
+                        <>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => void decide(row.id, "approved")}
+                            className="rounded-[8px] bg-brand-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-800 disabled:opacity-60"
+                          >
+                            Одобрить
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => {
+                              setRejectReasonKey(REJECT_REASONS[0].value);
+                              setRejectComment("");
+                              setRejectTarget(row);
+                            }}
+                            className="rounded-[8px] border border-border px-3 py-1.5 text-xs font-bold text-[#c94343] hover:bg-[#fdecec] disabled:opacity-60"
+                          >
+                            Отклонить
+                          </button>
+                        </>
+                      ) : null}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -245,6 +282,163 @@ export function ModeratorCtApplications() {
           </table>
         </div>
       )}
+
+      <Drawer
+        open={reviewApp !== null}
+        onClose={() => setReviewApp(null)}
+        title="Рассмотрение заявки на ЦТ"
+        widthClassName="max-w-lg"
+        footer={
+          reviewApp?.status === "pending" ? (
+            <>
+              <FormButton
+                type="button"
+                variant="secondary"
+                className="w-auto px-4 py-2.5"
+                onClick={() => {
+                  if (!reviewApp) return;
+                  setRejectReasonKey(REJECT_REASONS[0].value);
+                  setRejectComment("");
+                  setRejectTarget(reviewApp);
+                }}
+                disabled={busy}
+              >
+                Отклонить
+              </FormButton>
+              <FormButton
+                type="button"
+                className="w-auto px-4 py-2.5"
+                onClick={() => {
+                  if (!reviewApp) return;
+                  void decide(reviewApp.id, "approved");
+                }}
+                disabled={busy}
+              >
+                Одобрить заявку
+              </FormButton>
+            </>
+          ) : (
+            <FormButton
+              type="button"
+              variant="secondary"
+              className="w-auto px-4 py-2.5"
+              onClick={() => setReviewApp(null)}
+            >
+              Закрыть
+            </FormButton>
+          )
+        }
+      >
+        {reviewApp ? (
+          <dl className="space-y-3 text-sm">
+            <DrawerField label="ID заявки" value={reviewApp.id} />
+            <DrawerField label="Абитуриент" value={reviewApp.userId} />
+            <DrawerField
+              label="Сеанс"
+              value={
+                reviewApp.exam?.startsAt
+                  ? formatExamWhen(reviewApp.exam.startsAt)
+                  : reviewApp.examId
+              }
+            />
+            <DrawerField
+              label="Пункт"
+              value={reviewApp.exam?.venue?.name || "—"}
+            />
+            <DrawerField
+              label="Статус"
+              value={applicationStatusLabel(reviewApp.status)}
+            />
+            {reviewApp.rejectReason ? (
+              <DrawerField label="Причина" value={reviewApp.rejectReason} />
+            ) : null}
+          </dl>
+        ) : null}
+      </Drawer>
+
+      <Modal
+        open={rejectTarget !== null}
+        onClose={() => setRejectTarget(null)}
+        title="Отклонить заявку на ЦТ?"
+        size="sm"
+        footer={
+          <>
+            <FormButton
+              type="button"
+              variant="secondary"
+              className="w-auto px-4 py-2.5"
+              onClick={() => setRejectTarget(null)}
+              disabled={busy}
+            >
+              Отмена
+            </FormButton>
+            <FormButton
+              type="button"
+              variant="destructive"
+              className="w-auto px-4 py-2.5"
+              disabled={busy}
+              onClick={() => {
+                if (!rejectTarget) return;
+                void decide(rejectTarget.id, "rejected", rejectReasonText());
+              }}
+            >
+              Отклонить заявку
+            </FormButton>
+          </>
+        }
+      >
+        <label className="block space-y-1.5">
+          <span className="text-sm font-semibold text-text-secondary">
+            Причина
+          </span>
+          <select
+            value={rejectReasonKey}
+            onChange={(e) => setRejectReasonKey(e.target.value)}
+            className="w-full rounded-[10px] border border-border bg-white px-3 py-2.5 text-sm"
+          >
+            {REJECT_REASONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="mt-3 block space-y-1.5">
+          <span className="text-sm font-semibold text-text-secondary">
+            Комментарий
+          </span>
+          <textarea
+            value={rejectComment}
+            onChange={(e) => setRejectComment(e.target.value)}
+            rows={3}
+            className="w-full rounded-[10px] border border-border px-3.5 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+            placeholder="Дополнительные детали для абитуриента"
+          />
+        </label>
+      </Modal>
+
+      <ConfirmDialog
+        open={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        onConfirm={() => void approveBatch()}
+        title="Массовое одобрение заявок"
+        confirmLabel={`Одобрить (${selected.size})`}
+        busy={busy}
+      >
+        Будут одобрены выбранные заявки ({selected.size}). Абитуриентам будут
+        сформированы пропуска на сдачу ЦТ.
+      </ConfirmDialog>
+    </div>
+  );
+}
+
+function DrawerField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border-b border-border pb-2">
+      <dt className="text-xs font-bold uppercase tracking-wide text-text-muted">
+        {label}
+      </dt>
+      <dd className="mt-1 font-semibold text-text-primary">{value}</dd>
     </div>
   );
 }

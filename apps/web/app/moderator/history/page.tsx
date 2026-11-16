@@ -1,11 +1,5 @@
-import { VerificationQueue } from "@/components/moderator/VerificationQueue";
+import { ModeratorDecisionHistory } from "@/components/moderator/ModeratorDecisionHistory";
 
 export default function ModeratorHistoryPage() {
-  return (
-    <VerificationQueue
-      title="Журнал решений модератора"
-      subtitle="Отклонённые и уже рассмотренные анкеты абитуриентов."
-      initialTab="rejected"
-    />
-  );
+  return <ModeratorDecisionHistory />;
 }
