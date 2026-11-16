@@ -13,6 +13,7 @@
     "migrate": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
     "seed": "prisma db seed",
+    "storage:init": "tsx scripts/ensure-bucket.mjs",
     "postinstall": "prisma generate"
   },
   "prisma": {
@@ -22,14 +23,18 @@
     "@abiturent/auth": "0.1.0",
     "@abiturent/contracts": "0.1.0",
     "@abiturent/service-kit": "0.1.0",
+    "@aws-sdk/client-s3": "^3.1169.0",
+    "@aws-sdk/s3-request-presigner": "^3.1169.0",
     "@prisma/client": "^6.5.0",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "pdfkit": "^0.20.2",
     "zod": "^3.24.2"
   },
   "devDependencies": {
     "@types/express": "^5.0.1",
     "@types/node": "^22.13.10",
+    "@types/pdfkit": "^0.17.7",
     "prisma": "^6.5.0",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2"

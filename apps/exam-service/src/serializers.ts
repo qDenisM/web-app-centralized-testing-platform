@@ -32,6 +32,8 @@ export function applicationJson(row: Application & { exam?: Exam & { venue?: Ven
     userId: row.userId,
     status: row.status,
     passNumber: row.passNumber,
+    passStorageKey: row.passStorageKey,
+    hasPass: Boolean(row.passStorageKey),
     rejectReason: row.rejectReason,
     createdAt: row.createdAt.toISOString(),
     exam: row.exam ? examJson(row.exam) : undefined,

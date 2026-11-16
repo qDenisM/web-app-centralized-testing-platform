@@ -1,37 +1,17 @@
-import type { Prisma } from "../generated/prisma/index.js";
+import type { Application, Exam, Prisma, Venue } from "../generated/prisma/index.js";
 
 type Tx = Prisma.TransactionClient;
 
 const examInclude = { venue: true } as const;
 
+type AppWithExam = Application & {
+  exam: Exam & { venue: Venue };
+};
+
 export async function releaseSeatAndMaybePromote(
   tx: Tx,
   examId: string,
-): Promise<{
-  id: string;
-  examId: string;
-  userId: string;
-  status: string;
-  passNumber: string | null;
-  rejectReason: string | null;
-  createdAt: Date;
-  exam: {
-    id: string;
-    subjectId: string;
-    venueId: string;
-    startsAt: Date;
-    duration: number;
-    capacity: number;
-    seatsTaken: number;
-    isReserve: boolean;
-    venue: {
-      id: string;
-      name: string;
-      address: string;
-      city: string;
-    };
-  };
-} | null> {
+): Promise<AppWithExam | null> {
   const nextWait = await tx.waitlistEntry.findFirst({
     where: { examId, status: "waiting" },
     orderBy: { position: "asc" },
@@ -64,6 +44,7 @@ export async function releaseSeatAndMaybePromote(
         status: "pending",
         rejectReason: null,
         passNumber: null,
+        passStorageKey: null,
         createdAt: new Date(),
       },
       include: { exam: { include: examInclude } },

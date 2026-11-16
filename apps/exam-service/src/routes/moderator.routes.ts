@@ -3,6 +3,7 @@ import { z } from "zod";
 import { AppError, validate } from "@abiturent/service-kit";
 import { requireModerator } from "../auth.js";
 import { prisma } from "../db.js";
+import { issuePassPdf } from "../pass-pdf.js";
 import { nextPassNumber, releaseSeatAndMaybePromote } from "../seats.js";
 import { applicationJson } from "../serializers.js";
 
@@ -115,7 +116,14 @@ moderatorRoutes.post(
           });
         });
 
-        if (updated) approved.push(applicationJson(updated));
+        if (!updated) continue;
+
+        await issuePassPdf(updated.id);
+        const withPass = await prisma.application.findUnique({
+          where: { id: updated.id },
+          include: { exam: { include: examInclude } },
+        });
+        if (withPass) approved.push(applicationJson(withPass));
       }
 
       res.status(200).json({ items: approved, count: approved.length });
@@ -186,6 +194,7 @@ moderatorRoutes.post(
             status: "rejected",
             rejectReason: body.reason!.trim(),
             passNumber: null,
+            passStorageKey: null,
           },
           include: { exam: { include: examInclude } },
         });
@@ -193,6 +202,21 @@ moderatorRoutes.post(
         const promoted = await releaseSeatAndMaybePromote(tx, row.examId);
         return { application: updated, promoted };
       });
+
+      if (result.application.status === "approved") {
+        await issuePassPdf(result.application.id);
+        const withPass = await prisma.application.findUnique({
+          where: { id: result.application.id },
+          include: { exam: { include: examInclude } },
+        });
+        if (withPass) {
+          res.status(200).json({
+            application: applicationJson(withPass),
+            promoted: null,
+          });
+          return;
+        }
+      }
 
       res.status(200).json({
         application: applicationJson(result.application),

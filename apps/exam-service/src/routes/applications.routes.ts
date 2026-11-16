@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { AppError } from "@abiturent/service-kit";
-import { requireApplicant } from "../auth.js";
+import { requireApplicant, requireModerator } from "../auth.js";
 import { prisma } from "../db.js";
 import { releaseSeatAndMaybePromote } from "../seats.js";
 import { applicationJson, waitlistJson } from "../serializers.js";
+import { createPassDownloadUrl } from "../storage.js";
 
 export const applicationsRoutes = Router();
 
@@ -79,7 +80,11 @@ applicationsRoutes.post(
 
         const cancelled = await tx.application.update({
           where: { id },
-          data: { status: "cancelled", passNumber: null },
+          data: {
+            status: "cancelled",
+            passNumber: null,
+            passStorageKey: null,
+          },
           include: { exam: { include: examInclude } },
         });
 
@@ -94,6 +99,59 @@ applicationsRoutes.post(
       res.status(200).json({
         application: applicationJson(result.application),
         promoted: result.promoted ? applicationJson(result.promoted) : null,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+applicationsRoutes.get(
+  "/applications/:id/pass",
+  ...requireApplicant,
+  async (req, res, next) => {
+    try {
+      const userId = req.user?.sub;
+      if (!userId) throw AppError.unauthorized();
+      const id = String(req.params.id);
+
+      const row = await prisma.application.findUnique({ where: { id } });
+      if (!row || row.userId !== userId) {
+        throw AppError.notFound("Application not found");
+      }
+      if (row.status !== "approved" || !row.passStorageKey) {
+        throw AppError.badRequest("Пропуск ещё не готов");
+      }
+
+      const link = await createPassDownloadUrl(row.passStorageKey);
+      res.status(200).json({
+        passNumber: row.passNumber,
+        storageKey: row.passStorageKey,
+        ...link,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+applicationsRoutes.get(
+  "/moderator/applications/:id/pass",
+  ...requireModerator,
+  async (req, res, next) => {
+    try {
+      const id = String(req.params.id);
+      const row = await prisma.application.findUnique({ where: { id } });
+      if (!row) throw AppError.notFound("Application not found");
+      if (row.status !== "approved" || !row.passStorageKey) {
+        throw AppError.badRequest("Пропуск ещё не готов");
+      }
+
+      const link = await createPassDownloadUrl(row.passStorageKey);
+      res.status(200).json({
+        passNumber: row.passNumber,
+        storageKey: row.passStorageKey,
+        ...link,
       });
     } catch (err) {
       next(err);
