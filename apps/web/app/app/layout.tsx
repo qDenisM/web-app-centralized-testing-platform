@@ -1,9 +1,9 @@
-import { CabinetShell } from "@/components/layout/CabinetShell";
+import { ApplicantShell } from "@/components/layout/ApplicantShell";
 
 export default function ApplicantLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <CabinetShell title="Кабинет абитуриента">{children}</CabinetShell>;
+  return <ApplicantShell>{children}</ApplicantShell>;
 }

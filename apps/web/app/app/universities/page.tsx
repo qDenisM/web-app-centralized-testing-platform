@@ -1,8 +1,35 @@
-export default function UniversitiesPage() {
+import { UniversitiesCatalog } from "@/components/universities/UniversitiesCatalog";
+import {
+  fetchCatalogSpecialties,
+  fetchCatalogSubjects,
+  type CatalogSpecialty,
+  type CatalogSubject,
+} from "@/lib/catalog";
+
+export default async function UniversitiesPage() {
+  let specialties: CatalogSpecialty[] = [];
+  let subjects: CatalogSubject[] = [];
+  let error: string | null = null;
+
+  try {
+    [specialties, subjects] = await Promise.all([
+      fetchCatalogSpecialties(),
+      fetchCatalogSubjects(),
+    ]);
+  } catch {
+    error = "Каталог временно недоступен. Проверьте, что catalog-service запущен.";
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-[14px] border border-border bg-white p-6 shadow-[var(--shadow-soft)]">
+        <h1 className="text-xl font-extrabold text-brand-900">Университеты</h1>
+        <p className="mt-2 text-sm text-text-secondary">{error}</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-2">
-      <h1 className="text-xl font-extrabold text-brand-900">Вузы</h1>
-      <p className="text-sm text-text-secondary">Заглушка — каталог на Этапе 3.</p>
-    </div>
+    <UniversitiesCatalog specialties={specialties} subjects={subjects} />
   );
 }

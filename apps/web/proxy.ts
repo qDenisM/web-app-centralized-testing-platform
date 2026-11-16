@@ -21,10 +21,6 @@ function isAuthPage(pathname: string): boolean {
   return pathname === "/login" || pathname === "/register";
 }
 
-/**
- * В Next.js 16 бывший middleware называется proxy.
- * Здесь: гости → /login, авторизованные с auth-страниц → кабинет по роли.
- */
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const access = request.cookies.get(ACCESS_COOKIE)?.value;
