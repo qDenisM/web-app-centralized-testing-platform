@@ -21,6 +21,7 @@ dist/
 apps/catalog-service/generated/
 apps/applicant-service/generated/
 apps/exam-service/generated/
+apps/results-service/generated/
 
 # misc
 .DS_Store

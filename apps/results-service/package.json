@@ -2,5 +2,32 @@
   "name": "@abiturent/results-service",
   "version": "0.1.0",
   "private": true,
-  "description": "Stub for Stage 0 — реализация на следующих этапах"
+  "type": "module",
+  "description": "Results service: CT scores and publication",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "prisma generate && tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "typecheck": "prisma generate && tsc -p tsconfig.json --noEmit",
+    "prisma:generate": "prisma generate",
+    "migrate": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
+    "postinstall": "prisma generate"
+  },
+  "dependencies": {
+    "@abiturent/auth": "0.1.0",
+    "@abiturent/contracts": "0.1.0",
+    "@abiturent/service-kit": "0.1.0",
+    "@prisma/client": "^6.5.0",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.1",
+    "@types/node": "^22.13.10",
+    "prisma": "^6.5.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
 }
