@@ -3,7 +3,12 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { FormButton } from "@/components/ui/FormButton";
 import { Input } from "@/components/ui/Input";
-import type { ApplicantProfile, UploadUrlResponse } from "@/lib/applicant";
+import type {
+  ApplicantProfile,
+  OcrAttestatResponse,
+  UploadUrlResponse,
+} from "@/lib/applicant";
+import { cn } from "@/lib/utils";
 
 const MAX_BYTES = 10 * 1024 * 1024;
 
@@ -16,7 +21,9 @@ export function CertificateForm() {
   const [schoolName, setSchoolName] = useState("");
   const [attestatAverage, setAttestatAverage] = useState("");
   const [attestatIssuedOn, setAttestatIssuedOn] = useState("");
+  const [lowConfidence, setLowConfidence] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [ocrLoading, setOcrLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
@@ -60,6 +67,33 @@ export function CertificateForm() {
       cancelled = true;
     };
   }, []);
+
+  async function runOcr(key: string) {
+    setOcrLoading(true);
+    try {
+      const res = await fetch("/api/applicant/attestat/ocr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storageKey: key }),
+      });
+      const data = (await res.json().catch(() => ({}))) as OcrAttestatResponse & {
+        error?: string;
+      };
+      if (!res.ok) {
+        setError(data.error || "OCR не удался, заполните поля вручную");
+        return;
+      }
+      setGraduateName(data.graduateName || "");
+      setSchoolName(data.schoolName || "");
+      setAttestatAverage(String(data.attestatAverage));
+      setAttestatIssuedOn(data.attestatIssuedOn || "");
+      setLowConfidence(data.lowConfidenceFields || []);
+    } catch {
+      setError("OCR недоступен, заполните поля вручную");
+    } finally {
+      setOcrLoading(false);
+    }
+  }
 
   async function uploadFile(file: File) {
     setError(null);
@@ -110,8 +144,11 @@ export function CertificateForm() {
 
       setStorageKey(signed.storageKey);
       setFileName(file.name);
+      setUploading(false);
+      await runOcr(signed.storageKey);
     } catch {
       setError("Ошибка загрузки");
+      setUploading(false);
     } finally {
       setUploading(false);
     }
@@ -127,6 +164,7 @@ export function CertificateForm() {
     setSchoolName("");
     setAttestatAverage("");
     setAttestatIssuedOn("");
+    setLowConfidence([]);
   }
 
   async function onSubmit(e: FormEvent) {
@@ -165,6 +203,7 @@ export function CertificateForm() {
         return;
       }
       setProfile(data);
+      setLowConfidence([]);
       alert("Данные аттестата сохранены");
     } catch {
       setError("Сеть недоступна");
@@ -177,6 +216,8 @@ export function CertificateForm() {
     return <p className="text-sm text-text-muted">Загрузка…</p>;
   }
 
+  const schoolDoubt = lowConfidence.includes("schoolName");
+
   return (
     <div className="space-y-5">
       <div>
@@ -187,8 +228,8 @@ export function CertificateForm() {
           Аттестат и распознавание среднего балла
         </h1>
         <p className="mt-1 text-sm text-text-secondary">
-          Загрузите скан или фото бланка. OCR появится на следующем шаге — пока
-          заполните поля вручную.
+          Загрузите скан или фото бланка. После загрузки поля заполнятся OCR
+          (сейчас это заглушка с фиксированными данными).
         </p>
         {profile?.attestatAverage != null ? (
           <p className="mt-2 text-sm font-semibold text-brand-800">
@@ -213,7 +254,7 @@ export function CertificateForm() {
 
           <button
             type="button"
-            disabled={uploading}
+            disabled={uploading || ocrLoading}
             onClick={() => inputRef.current?.click()}
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => {
@@ -222,9 +263,11 @@ export function CertificateForm() {
             }}
             className="flex min-h-[260px] w-full flex-col items-center justify-center rounded-[10px] border-2 border-dashed border-border bg-[#f4f7f9] px-6 py-8 text-center transition-colors hover:border-brand-500 disabled:opacity-70"
           >
-            {uploading ? (
+            {uploading || ocrLoading ? (
               <span className="text-sm font-semibold text-brand-900">
-                Загружаем файл…
+                {uploading
+                  ? "Загружаем файл…"
+                  : "Идёт оптическое распознавание…"}
               </span>
             ) : storageKey ? (
               <>
@@ -255,13 +298,20 @@ export function CertificateForm() {
         </section>
 
         <section className="rounded-[14px] border border-border bg-white p-5 shadow-[var(--shadow-soft)]">
-          <div className="mb-4 border-b border-border pb-3">
-            <h2 className="text-sm font-bold text-brand-900">
-              Результаты распознавания
-            </h2>
-            <p className="text-xs text-text-muted">
-              Проверьте данные перед сохранением
-            </p>
+          <div className="mb-4 flex items-start justify-between gap-3 border-b border-border pb-3">
+            <div>
+              <h2 className="text-sm font-bold text-brand-900">
+                Результаты распознавания
+              </h2>
+              <p className="text-xs text-text-muted">
+                Проверьте данные перед сохранением
+              </p>
+            </div>
+            {lowConfidence.length > 0 ? (
+              <span className="rounded-full border border-[#C6900A]/30 bg-[#FFF4D6] px-2.5 py-0.5 text-[11px] font-bold text-[#9A6B00]">
+                Требует проверки
+              </span>
+            ) : null}
           </div>
 
           <form onSubmit={onSubmit} className="space-y-4">
@@ -273,13 +323,29 @@ export function CertificateForm() {
               placeholder="Иванов Иван Иванович"
             />
 
-            <Input
-              label="Учебное заведение"
-              name="schoolName"
-              value={schoolName}
-              onChange={(e) => setSchoolName(e.target.value)}
-              placeholder="ГУО «Гимназия № 1 г. Минска»"
-            />
+            <label className="block space-y-1.5">
+              <span className="flex items-center justify-between gap-2 text-sm font-semibold text-text-secondary">
+                Учебное заведение
+                {schoolDoubt ? (
+                  <span className="text-[10px] font-bold text-[#9A6B00]">
+                    Проверьте: распознано с сомнениями
+                  </span>
+                ) : null}
+              </span>
+              <input
+                name="schoolName"
+                value={schoolName}
+                onChange={(e) => setSchoolName(e.target.value)}
+                placeholder="ГУО «Гимназия № 1 г. Минска»"
+                className={cn(
+                  "w-full rounded-[10px] border bg-white px-3.5 py-2.5 text-sm text-text-primary outline-none transition-colors",
+                  "placeholder:text-text-muted focus:ring-2",
+                  schoolDoubt
+                    ? "border-[#C6900A] bg-[#FFF4D6]/20 focus:border-[#C6900A] focus:ring-[#C6900A]/20"
+                    : "border-border focus:border-brand-500 focus:ring-brand-100",
+                )}
+              />
+            </label>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Input
@@ -324,7 +390,7 @@ export function CertificateForm() {
               </FormButton>
               <FormButton
                 className="w-auto px-4 py-2"
-                disabled={saving || uploading}
+                disabled={saving || uploading || ocrLoading}
               >
                 {saving ? "Сохраняем…" : "Подтвердить"}
               </FormButton>

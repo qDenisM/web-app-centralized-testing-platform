@@ -32,3 +32,11 @@ export type UploadUrlResponse = {
   storageKey: string;
   expiresIn: number;
 };
+
+export type OcrAttestatResponse = {
+  graduateName: string;
+  schoolName: string;
+  attestatAverage: number;
+  attestatIssuedOn: string;
+  lowConfidenceFields: string[];
+};

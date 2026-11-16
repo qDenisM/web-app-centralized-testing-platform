@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { AppError, validate } from "@abiturent/service-kit";
 import { requireApplicant } from "../auth.js";
+import { config } from "../config.js";
 import { prisma } from "../db.js";
 import { profileJson } from "../serializers.js";
 import {
@@ -36,6 +37,10 @@ const AttestatConfirmSchema = z.object({
   schoolName: z.string().nullable().optional(),
   attestatAverage: z.number().min(0).max(10).nullable().optional(),
   attestatIssuedOn: z.string().nullable().optional(),
+});
+
+const AttestatOcrSchema = z.object({
+  storageKey: z.string().min(1),
 });
 
 async function getOrCreateProfile(userId: string) {
@@ -187,6 +192,49 @@ profilesRoutes.post(
       });
 
       res.status(200).json(profileJson(profile));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+profilesRoutes.post(
+  "/profile/me/attestat/ocr",
+  ...requireApplicant,
+  validate(AttestatOcrSchema),
+  async (req, res, next) => {
+    try {
+      const userId = req.user?.sub;
+      if (!userId) throw AppError.unauthorized();
+      const body = AttestatOcrSchema.parse(req.body);
+
+      if (!body.storageKey.startsWith(`attestats/${userId}/`)) {
+        throw AppError.badRequest("Некорректный ключ файла");
+      }
+
+      const aiRes = await fetch(`${config.aiUrl}/ocr/attestat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({ storageKey: body.storageKey }),
+      });
+
+      if (!aiRes.ok) {
+        const text = await aiRes.text();
+        throw AppError.badRequest(text || "OCR-сервис временно недоступен");
+      }
+
+      const data = (await aiRes.json()) as {
+        graduateName: string;
+        schoolName: string;
+        attestatAverage: number;
+        attestatIssuedOn: string;
+        lowConfidenceFields: string[];
+      };
+
+      res.status(200).json(data);
     } catch (err) {
       next(err);
     }
