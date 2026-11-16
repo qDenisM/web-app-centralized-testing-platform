@@ -1,0 +1,62 @@
+"use client";
+
+import type { ReactNode } from "react";
+import { Modal } from "@/components/ui/Modal";
+import { FormButton } from "@/components/ui/FormButton";
+
+type ConfirmDialogProps = {
+  open: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  children: ReactNode;
+  confirmLabel: string;
+  cancelLabel?: string;
+  variant?: "primary" | "destructive";
+  busy?: boolean;
+};
+
+export function ConfirmDialog({
+  open,
+  onClose,
+  onConfirm,
+  title,
+  children,
+  confirmLabel,
+  cancelLabel = "Отмена",
+  variant = "primary",
+  busy = false,
+}: ConfirmDialogProps) {
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={title}
+      size="sm"
+      footer={
+        <>
+          <FormButton
+            type="button"
+            variant="secondary"
+            className="w-auto px-4 py-2.5"
+            onClick={onClose}
+            disabled={busy}
+          >
+            {cancelLabel}
+          </FormButton>
+          <FormButton
+            type="button"
+            variant={variant === "destructive" ? "destructive" : "primary"}
+            className="w-auto px-4 py-2.5"
+            onClick={onConfirm}
+            disabled={busy}
+          >
+            {confirmLabel}
+          </FormButton>
+        </>
+      }
+    >
+      <div className="text-sm leading-relaxed text-text-secondary">{children}</div>
+    </Modal>
+  );
+}
