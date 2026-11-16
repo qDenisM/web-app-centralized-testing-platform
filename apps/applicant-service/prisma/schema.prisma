@@ -1,0 +1,45 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model ApplicantProfile {
+  id              String    @id @default(uuid()) @db.Uuid
+  userId          String    @unique @map("user_id") @db.Uuid
+  birthDate       DateTime? @map("birth_date") @db.Date
+  passportSeries  String?   @map("passport_series")
+  passportNumber  String?   @map("passport_number")
+  storageKey      String?   @map("storage_key")
+  attestatAverage Float?    @map("attestat_average")
+  schoolName      String?   @map("school_name")
+  graduateName    String?   @map("graduate_name")
+  attestatIssuedOn DateTime? @map("attestat_issued_on") @db.Date
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  verifications Verification[]
+
+  @@map("applicant_profiles")
+}
+
+model Verification {
+  id           String    @id @default(uuid()) @db.Uuid
+  profileId    String    @map("profile_id") @db.Uuid
+  version      Int
+  status       String    @default("draft")
+  rejectReason String?   @map("reject_reason")
+  lockedBy     String?   @map("locked_by") @db.Uuid
+  submittedAt  DateTime? @map("submitted_at") @db.Timestamptz(6)
+  decidedAt    DateTime? @map("decided_at") @db.Timestamptz(6)
+
+  profile ApplicantProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, version])
+  @@index([profileId])
+  @@index([status])
+  @@map("verifications")
+}
