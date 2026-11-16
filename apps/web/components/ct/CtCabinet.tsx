@@ -9,9 +9,10 @@ import {
   type ExamSession,
   type ExamWaitlistEntry,
 } from "@/lib/exam";
+import type { CtResult } from "@/lib/results";
 import { cn } from "@/lib/utils";
 
-type Tab = "register" | "schedule";
+type Tab = "register" | "schedule" | "results";
 
 type CtCabinetProps = {
   subjects: CatalogSubject[];
@@ -22,6 +23,7 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
   const [exams, setExams] = useState<ExamSession[]>([]);
   const [applications, setApplications] = useState<ExamApplication[]>([]);
   const [waitlist, setWaitlist] = useState<ExamWaitlistEntry[]>([]);
+  const [results, setResults] = useState<CtResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -38,10 +40,11 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
     setLoading(true);
     setError(null);
     try {
-      const [examsRes, appsRes, waitRes] = await Promise.all([
+      const [examsRes, appsRes, waitRes, resultsRes] = await Promise.all([
         fetch("/api/exam/exams?isReserve=false"),
         fetch("/api/exam/applications/me"),
         fetch("/api/exam/waitlist/me"),
+        fetch("/api/results/me"),
       ]);
 
       const examsJson = (await examsRes.json().catch(() => [])) as
@@ -52,6 +55,9 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
         | { error?: string };
       const waitJson = (await waitRes.json().catch(() => [])) as
         | ExamWaitlistEntry[]
+        | { error?: string };
+      const resultsJson = (await resultsRes.json().catch(() => [])) as
+        | CtResult[]
         | { error?: string };
 
       if (!examsRes.ok || !Array.isArray(examsJson)) {
@@ -78,10 +84,19 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
         );
         return;
       }
+      if (!resultsRes.ok || !Array.isArray(resultsJson)) {
+        setError(
+          !Array.isArray(resultsJson) && resultsJson.error
+            ? resultsJson.error
+            : "Не удалось загрузить результаты",
+        );
+        return;
+      }
 
       setExams(examsJson);
       setApplications(appsJson);
       setWaitlist(waitJson);
+      setResults(resultsJson);
     } catch {
       setError("Сеть недоступна. Проверьте exam-service.");
     } finally {
@@ -125,6 +140,20 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
           return aAt.localeCompare(bAt);
         }),
     [applications],
+  );
+
+  const examById = useMemo(() => {
+    const map = new Map<string, ExamSession>();
+    for (const exam of exams) map.set(exam.id, exam);
+    for (const app of applications) {
+      if (app.exam) map.set(app.exam.id, app.exam);
+    }
+    return map;
+  }, [exams, applications]);
+
+  const ctSum = useMemo(
+    () => results.reduce((sum, row) => sum + (row.score || 0), 0),
+    [results],
   );
 
   async function apply(examId: string) {
@@ -226,6 +255,7 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
           [
             ["register", "Запись на ЦТ"],
             ["schedule", "Расписание ЦТ"],
+            ["results", "Результаты (баллы)"],
           ] as const
         ).map(([key, label]) => (
           <button
@@ -256,7 +286,9 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
         <p className="rounded-[12px] border border-[#c94343]/30 bg-[#fdecec] px-4 py-3 text-sm text-[#8a2a2a]">
           {error}
         </p>
-      ) : tab === "register" ? (
+      ) : null}
+
+      {!loading && !error && tab === "register" ? (
         <div className="space-y-4">
           <div className="flex flex-wrap items-end gap-3">
             <label className="text-sm">
@@ -435,7 +467,9 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
             ) : null}
           </div>
         </div>
-      ) : (
+      ) : null}
+
+      {!loading && !error && tab === "schedule" ? (
         <div className="space-y-3">
           {scheduleApps.length === 0 ? (
             <p className="rounded-[14px] border border-border bg-white p-5 text-sm text-text-secondary shadow-[var(--shadow-soft)]">
@@ -498,7 +532,92 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
             ))
           )}
         </div>
-      )}
+      ) : null}
+
+      {!loading && !error && tab === "results" ? (
+        <div className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-[14px] border border-border bg-white p-4 shadow-[var(--shadow-soft)]">
+              <p className="text-xs font-bold uppercase tracking-wide text-text-muted">
+                Сумма ЦТ
+              </p>
+              <p className="mt-2 text-3xl font-black text-brand-900">{ctSum}</p>
+              <p className="mt-1 text-xs text-text-secondary">
+                из {results.length * 100} по {results.length} предметам
+              </p>
+            </div>
+            <div className="rounded-[14px] border border-border bg-white p-4 shadow-[var(--shadow-soft)]">
+              <p className="text-xs font-bold uppercase tracking-wide text-text-muted">
+                Опубликовано
+              </p>
+              <p className="mt-2 text-3xl font-black text-brand-900">
+                {results.length}
+              </p>
+              <p className="mt-1 text-xs text-text-secondary">результатов</p>
+            </div>
+            <div className="rounded-[14px] border border-border bg-white p-4 shadow-[var(--shadow-soft)]">
+              <p className="text-xs font-bold uppercase tracking-wide text-text-muted">
+                Средний балл
+              </p>
+              <p className="mt-2 text-3xl font-black text-brand-900">
+                {results.length
+                  ? Math.round(ctSum / results.length)
+                  : "—"}
+              </p>
+              <p className="mt-1 text-xs text-text-secondary">по опубликованным</p>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto rounded-[14px] border border-border bg-white shadow-[var(--shadow-soft)]">
+            <table className="min-w-full text-left text-sm">
+              <thead className="border-b border-border bg-[#f8fafc] text-xs font-bold uppercase tracking-wide text-text-muted">
+                <tr>
+                  <th className="px-4 py-3">Предмет</th>
+                  <th className="px-4 py-3">Дата</th>
+                  <th className="px-4 py-3">Балл</th>
+                  <th className="px-4 py-3">Статус</th>
+                </tr>
+              </thead>
+              <tbody>
+                {results.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={4}
+                      className="px-4 py-6 text-text-secondary"
+                    >
+                      Пока нет опубликованных баллов.
+                    </td>
+                  </tr>
+                ) : (
+                  results.map((row) => {
+                    const exam = examById.get(row.examId);
+                    return (
+                      <tr key={row.id} className="border-b border-border last:border-0">
+                        <td className="px-4 py-3 font-semibold text-brand-900">
+                          {exam
+                            ? subjectName(exam.subjectId)
+                            : "Предмет"}
+                        </td>
+                        <td className="px-4 py-3 text-text-secondary">
+                          {exam ? formatExamWhen(exam.startsAt) : "—"}
+                        </td>
+                        <td className="px-4 py-3 text-base font-extrabold text-brand-900">
+                          {row.score ?? "—"}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="rounded-full bg-[#e4f6ec] px-2.5 py-0.5 text-xs font-bold text-[#176b45]">
+                            Завершено
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
