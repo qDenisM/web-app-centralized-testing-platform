@@ -9,3 +9,12 @@ export const requireApplicant = [
   }),
   requireRole("applicant", "admin"),
 ];
+
+export const requireModerator = [
+  authenticate({
+    jwksUrl: config.jwksUrl,
+    issuer: config.jwtIssuer,
+    audience: config.jwtAudience,
+  }),
+  requireRole("moderator", "admin"),
+];

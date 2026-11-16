@@ -22,6 +22,7 @@ export type ApplicantProfile = {
     version: number;
     status: string;
     rejectReason: string | null;
+    lockedBy: string | null;
     submittedAt: string | null;
     decidedAt: string | null;
   } | null;

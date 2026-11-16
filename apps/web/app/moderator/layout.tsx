@@ -1,9 +1,9 @@
-import { CabinetShell } from "@/components/layout/CabinetShell";
+import { ModeratorShell } from "@/components/layout/ModeratorShell";
 
 export default function ModeratorLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <CabinetShell title="Модератор">{children}</CabinetShell>;
+  return <ModeratorShell>{children}</ModeratorShell>;
 }
