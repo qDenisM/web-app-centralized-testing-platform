@@ -1,6 +1,7 @@
 import {
   CreateBucketCommand,
   HeadBucketCommand,
+  PutBucketCorsCommand,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -18,6 +19,25 @@ const s3 = new S3Client({
   forcePathStyle: config.minio.forcePathStyle,
 });
 
+async function ensureBucketCors(bucket: string): Promise<void> {
+  await s3.send(
+    new PutBucketCorsCommand({
+      Bucket: bucket,
+      CORSConfiguration: {
+        CORSRules: [
+          {
+            AllowedHeaders: ["*"],
+            AllowedMethods: ["GET", "PUT", "POST", "HEAD"],
+            AllowedOrigins: ["*"],
+            ExposeHeaders: ["ETag", "Location"],
+            MaxAgeSeconds: 3600,
+          },
+        ],
+      },
+    }),
+  );
+}
+
 export async function ensureDocumentsBucket(): Promise<void> {
   const bucket = config.minio.documentsBucket;
   try {
@@ -25,6 +45,7 @@ export async function ensureDocumentsBucket(): Promise<void> {
   } catch {
     await s3.send(new CreateBucketCommand({ Bucket: bucket }));
   }
+  await ensureBucketCors(bucket);
 }
 
 export function buildAttestatStorageKey(userId: string, fileName: string): string {

@@ -8,16 +8,30 @@ export default function ApplicantHomePage() {
           Личный кабинет
         </h1>
         <p className="mt-1 max-w-xl text-sm leading-relaxed text-text-secondary">
-          Вы вошли как абитуриент. Можно смотреть каталог вузов и специальностей.
+          Заполните анкету и загрузите аттестат, затем смотрите каталог вузов.
         </p>
       </div>
 
-      <Link
-        href="/app/universities"
-        className="inline-flex rounded-[10px] bg-brand-700 px-4 py-2.5 text-sm font-bold text-white shadow-[var(--shadow-soft)] hover:bg-brand-800"
-      >
-        Открыть каталог вузов
-      </Link>
+      <div className="flex flex-wrap gap-3">
+        <Link
+          href="/app/profile"
+          className="inline-flex rounded-[10px] border border-border bg-white px-4 py-2.5 text-sm font-bold text-text-secondary shadow-[var(--shadow-soft)] hover:bg-[#f8fafc]"
+        >
+          Анкета
+        </Link>
+        <Link
+          href="/app/certificate"
+          className="inline-flex rounded-[10px] border border-border bg-white px-4 py-2.5 text-sm font-bold text-text-secondary shadow-[var(--shadow-soft)] hover:bg-[#f8fafc]"
+        >
+          Аттестат
+        </Link>
+        <Link
+          href="/app/universities"
+          className="inline-flex rounded-[10px] bg-brand-700 px-4 py-2.5 text-sm font-bold text-white shadow-[var(--shadow-soft)] hover:bg-brand-800"
+        >
+          Каталог вузов
+        </Link>
+      </div>
     </div>
   );
 }

@@ -9,8 +9,9 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/app", label: "Главная", exact: true },
-  { href: "/app/ct", label: "Мои ЦТ" },
+  { href: "/app/profile", label: "Профиль" },
   { href: "/app/certificate", label: "Аттестат" },
+  { href: "/app/ct", label: "Мои ЦТ" },
   { href: "/app/universities", label: "Университеты" },
 ];
 
