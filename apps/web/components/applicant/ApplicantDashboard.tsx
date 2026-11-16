@@ -172,8 +172,11 @@ export function ApplicantDashboard() {
             СТСР • Личный кабинет абитуриента
           </p>
           <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-brand-900">
-            Главная
+            Сводка абитуриента
           </h1>
+          <p className="mt-1 max-w-xl text-sm leading-relaxed text-text-secondary">
+            Баллы ЦТ, аттестат, календарь кампании и избранные специальности.
+          </p>
         </div>
         {campaign?.status === "active" ? (
           <span className="inline-flex items-center gap-2 rounded-[8px] border border-[#1F8A58]/20 bg-[#E4F6EC] px-3 py-1.5 text-xs font-bold text-[#176B45]">

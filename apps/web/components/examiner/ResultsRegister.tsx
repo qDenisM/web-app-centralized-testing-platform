@@ -310,7 +310,7 @@ export function ResultsRegister({ subjects }: ResultsRegisterProps) {
       </div>
 
       {draftSelectedIds.length > 0 ? (
-        <motion>
+        <div>
           <FormButton
             type="button"
             className="w-auto px-4 py-2"
@@ -318,7 +318,7 @@ export function ResultsRegister({ subjects }: ResultsRegisterProps) {
           >
             Опубликовать выбранные ({draftSelectedIds.length})
           </FormButton>
-        </motion>
+        </div>
       ) : null}
 
       {error ? (

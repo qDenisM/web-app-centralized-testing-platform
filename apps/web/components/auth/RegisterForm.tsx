@@ -105,7 +105,7 @@ export function RegisterForm() {
     <div className="space-y-5">
       <div>
         <p className="text-xs font-bold uppercase tracking-wide text-brand-700">
-          {step} из 2
+          Шаг {step} из 2
         </p>
         <h1 className="text-2xl font-extrabold tracking-tight text-brand-900">
           {step === 1 ? "Создание аккаунта" : "Личные данные"}
