@@ -3,6 +3,10 @@ import { z } from "zod";
 import { AppError, validate } from "@abiturent/service-kit";
 import { requireModerator } from "../auth.js";
 import { prisma } from "../db.js";
+import {
+  decisionNotificationText,
+  sendNotification,
+} from "../notify.js";
 import { verificationQueueJson } from "../serializers.js";
 
 export const moderatorRoutes = Router();
@@ -148,16 +152,25 @@ moderatorRoutes.post(
         throw AppError.badRequest("Укажите причину");
       }
 
+      const rejectReason =
+        body.decision === "approved" ? null : body.reason!.trim();
+
       const updated = await prisma.verification.update({
         where: { id },
         data: {
           status: body.decision,
-          rejectReason:
-            body.decision === "approved" ? null : body.reason!.trim(),
+          rejectReason,
           lockedBy: moderatorId,
           decidedAt: new Date(),
         },
         include: { profile: true },
+      });
+
+      const text = decisionNotificationText(body.decision, rejectReason);
+      await sendNotification({
+        userId: updated.profile.userId,
+        title: text.title,
+        body: text.body,
       });
 
       res.status(200).json(verificationQueueJson(updated));

@@ -40,4 +40,4 @@ yarn-error.log*
 # docker volumes / local data (if ever mounted here)
 infra/**/data/
 
-AGENTS.md
+AGENTS.mdapps/notification-service/generated/
