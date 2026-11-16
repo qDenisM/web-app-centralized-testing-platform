@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { ApplicantProfile } from "@/lib/applicant";
 import type { CatalogSubject } from "@/lib/catalog";
 import {
   applicationStatusLabel,
@@ -12,10 +13,24 @@ import {
 import type { CtResult } from "@/lib/results";
 import { cn } from "@/lib/utils";
 
-type Tab = "register" | "schedule" | "results";
+type Tab = "register" | "schedule" | "results" | "errors";
 
 type CtCabinetProps = {
   subjects: CatalogSubject[];
+};
+
+const STUB_ERRORS = {
+  variantSummary: "Вариант 24 · итог 62 балла из 100",
+  weakTopics: [
+    { topic: "Тригонометрические преобразования", share: "38%" },
+    { topic: "Стереометрия", share: "24%" },
+    { topic: "Логарифмы и показательные уравнения", share: "18%" },
+  ],
+  blankMistakes: [
+    { num: 12, note: "Неверно перенесён знак при раскрытии скобок" },
+    { num: 27, note: "Ответ не соответствует выбранному варианту в бланке" },
+    { num: 31, note: "Пропущена единица измерения" },
+  ],
 };
 
 export function CtCabinet({ subjects }: CtCabinetProps) {
@@ -24,11 +39,13 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
   const [applications, setApplications] = useState<ExamApplication[]>([]);
   const [waitlist, setWaitlist] = useState<ExamWaitlistEntry[]>([]);
   const [results, setResults] = useState<CtResult[]>([]);
+  const [profile, setProfile] = useState<ApplicantProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [subjectFilter, setSubjectFilter] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const [errorsSubjectId, setErrorsSubjectId] = useState<string | null>(null);
 
   const subjectName = useCallback(
     (subjectId: string) =>
@@ -40,12 +57,14 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
     setLoading(true);
     setError(null);
     try {
-      const [examsRes, appsRes, waitRes, resultsRes] = await Promise.all([
-        fetch("/api/exam/exams?isReserve=false"),
-        fetch("/api/exam/applications/me"),
-        fetch("/api/exam/waitlist/me"),
-        fetch("/api/results/me"),
-      ]);
+      const [examsRes, appsRes, waitRes, resultsRes, profileRes] =
+        await Promise.all([
+          fetch("/api/exam/exams?isReserve=false"),
+          fetch("/api/exam/applications/me"),
+          fetch("/api/exam/waitlist/me"),
+          fetch("/api/results/me"),
+          fetch("/api/applicant/profile"),
+        ]);
 
       const examsJson = (await examsRes.json().catch(() => [])) as
         | ExamSession[]
@@ -59,6 +78,10 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
       const resultsJson = (await resultsRes.json().catch(() => [])) as
         | CtResult[]
         | { error?: string };
+      const profileJson = (await profileRes.json().catch(() => null)) as
+        | ApplicantProfile
+        | { error?: string }
+        | null;
 
       if (!examsRes.ok || !Array.isArray(examsJson)) {
         setError(
@@ -97,6 +120,9 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
       setApplications(appsJson);
       setWaitlist(waitJson);
       setResults(resultsJson);
+      if (profileRes.ok && profileJson && !("error" in profileJson)) {
+        setProfile(profileJson as ApplicantProfile);
+      }
     } catch {
       setError("Сеть недоступна. Проверьте exam-service.");
     } finally {
@@ -142,6 +168,22 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
     [applications],
   );
 
+  const scheduleByMonth = useMemo(() => {
+    const groups = new Map<string, ExamApplication[]>();
+    for (const app of scheduleApps) {
+      const d = app.exam?.startsAt
+        ? new Date(app.exam.startsAt)
+        : null;
+      const key = d
+        ? d.toLocaleDateString("ru-RU", { month: "long", year: "numeric" })
+        : "Без даты";
+      const list = groups.get(key) || [];
+      list.push(app);
+      groups.set(key, list);
+    }
+    return [...groups.entries()];
+  }, [scheduleApps]);
+
   const examById = useMemo(() => {
     const map = new Map<string, ExamSession>();
     for (const exam of exams) map.set(exam.id, exam);
@@ -151,10 +193,38 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
     return map;
   }, [exams, applications]);
 
-  const ctSum = useMemo(
-    () => results.reduce((sum, row) => sum + (row.score || 0), 0),
+  const publishedResults = useMemo(
+    () => results.filter((r) => r.status === "published"),
     [results],
   );
+
+  const ctSum = useMemo(
+    () => publishedResults.reduce((sum, row) => sum + (row.score || 0), 0),
+    [publishedResults],
+  );
+
+  const attestatAvg = profile?.attestatAverage ?? null;
+  const attestatScaled =
+    attestatAvg !== null ? Math.round(attestatAvg * 10 * 10) / 10 : null;
+  const competitiveTotal =
+    attestatScaled !== null
+      ? Math.round((ctSum + attestatScaled) * 10) / 10
+      : ctSum || null;
+
+  const errorsResult = useMemo(() => {
+    if (!errorsSubjectId && publishedResults.length > 0) {
+      return publishedResults[0];
+    }
+    if (errorsSubjectId) {
+      return (
+        publishedResults.find((r) => {
+          const exam = examById.get(r.examId);
+          return exam?.subjectId === errorsSubjectId;
+        }) || null
+      );
+    }
+    return null;
+  }, [errorsSubjectId, publishedResults, examById]);
 
   async function apply(examId: string) {
     setBusyId(examId);
@@ -239,15 +309,18 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
     }
   }
 
+  function openBreakdown(result: CtResult) {
+    const exam = examById.get(result.examId);
+    setErrorsSubjectId(exam?.subjectId || null);
+    setTab("errors");
+  }
+
   return (
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-extrabold tracking-tight text-brand-900">
-          Мои экзамены ЦТ
+          Мои ЦТ
         </h1>
-        <p className="mt-1 text-sm text-text-secondary">
-          Запись на сеансы, статус заявок и скачивание пропуска.
-        </p>
       </div>
 
       <div className="flex flex-wrap gap-2 border-b border-border pb-2">
@@ -255,7 +328,8 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
           [
             ["register", "Запись на ЦТ"],
             ["schedule", "Расписание ЦТ"],
-            ["results", "Результаты (баллы)"],
+            ["results", "Результаты (Баллы)"],
+            ["errors", "Разбор бланков и ошибки"],
           ] as const
         ).map(([key, label]) => (
           <button
@@ -407,7 +481,7 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
                           onClick={() => void downloadPass(app.id)}
                           className="rounded-[10px] border border-border bg-white px-4 py-2 text-sm font-bold text-text-secondary hover:bg-[#f8fafc] disabled:opacity-60"
                         >
-                          Пропуск
+                          Скачать пропуск (PDF)
                         </button>
                       ) : null}
 
@@ -440,7 +514,7 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
                           onClick={() => void apply(exam.id)}
                           className="rounded-[10px] bg-brand-700 px-4 py-2 text-sm font-bold text-white hover:bg-brand-800 disabled:opacity-60"
                         >
-                          + Записаться
+                          Записаться
                         </button>
                       ) : null}
 
@@ -470,65 +544,85 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
       ) : null}
 
       {!loading && !error && tab === "schedule" ? (
-        <div className="space-y-3">
+        <div className="space-y-5">
           {scheduleApps.length === 0 ? (
             <p className="rounded-[14px] border border-border bg-white p-5 text-sm text-text-secondary shadow-[var(--shadow-soft)]">
               Пока нет активных записей. Запишитесь на вкладке «Запись на ЦТ».
             </p>
           ) : (
-            scheduleApps.map((app) => (
-              <article
-                key={app.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-border bg-white p-4 shadow-[var(--shadow-soft)]"
-              >
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-base font-extrabold text-brand-900">
-                      {app.exam
-                        ? subjectName(app.exam.subjectId)
-                        : "Предмет"}
-                    </h2>
-                    <span
-                      className={cn(
-                        "rounded-full px-2.5 py-0.5 text-xs font-bold",
-                        app.status === "approved"
-                          ? "bg-[#e4f6ec] text-[#176b45]"
-                          : "bg-[#fff4e5] text-[#9a5b00]",
-                      )}
-                    >
-                      {applicationStatusLabel(app.status)}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-sm text-text-secondary">
-                    {app.exam ? formatExamWhen(app.exam.startsAt) : "—"}
-                    {app.exam?.venue?.name ? ` · ${app.exam.venue.name}` : ""}
-                  </p>
-                  {app.passNumber ? (
-                    <p className="mt-1 text-xs text-text-muted">
-                      Пропуск: {app.passNumber}
-                    </p>
-                  ) : null}
+            scheduleByMonth.map(([monthLabel, apps]) => (
+              <div key={monthLabel}>
+                <h2 className="mb-3 text-xs font-extrabold uppercase tracking-wide text-text-muted">
+                  {monthLabel}
+                </h2>
+                <div className="relative space-y-0 border-l-2 border-brand-200 pl-5">
+                  {apps.map((app) => {
+                    const day = app.exam?.startsAt
+                      ? new Date(app.exam.startsAt).toLocaleDateString("ru-RU", {
+                          day: "numeric",
+                          month: "short",
+                        })
+                      : "—";
+                    return (
+                      <article
+                        key={app.id}
+                        className="relative mb-4 rounded-[14px] border border-border bg-white p-4 shadow-[var(--shadow-soft)]"
+                      >
+                        <span className="absolute -left-[1.35rem] top-5 h-3 w-3 rounded-full border-2 border-white bg-brand-700" />
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-xs font-bold uppercase text-brand-800">
+                                {day}
+                              </span>
+                              <h3 className="text-base font-extrabold text-brand-900">
+                                {app.exam
+                                  ? subjectName(app.exam.subjectId)
+                                  : "Предмет"}
+                              </h3>
+                              <span
+                                className={cn(
+                                  "rounded-full px-2.5 py-0.5 text-xs font-bold",
+                                  app.status === "approved"
+                                    ? "bg-[#e4f6ec] text-[#176b45]"
+                                    : "bg-[#fff4e5] text-[#9a5b00]",
+                                )}
+                              >
+                                {applicationStatusLabel(app.status)}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-sm text-text-secondary">
+                              {app.exam ? formatExamWhen(app.exam.startsAt) : "—"}
+                              {app.exam?.venue?.name
+                                ? ` · ${app.exam.venue.name}`
+                                : ""}
+                            </p>
+                          </div>
+                          {app.status === "approved" ? (
+                            <button
+                              type="button"
+                              disabled={busyId === app.id}
+                              onClick={() => void downloadPass(app.id)}
+                              className="rounded-[10px] bg-brand-700 px-4 py-2 text-sm font-bold text-white hover:bg-brand-800 disabled:opacity-60"
+                            >
+                              Скачать пропуск (PDF)
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={busyId === app.id}
+                              onClick={() => void cancelApplication(app.id)}
+                              className="rounded-[10px] px-4 py-2 text-sm font-bold text-[#c94343] hover:bg-[#fdecec] disabled:opacity-60"
+                            >
+                              Отменить
+                            </button>
+                          )}
+                        </div>
+                      </article>
+                    );
+                  })}
                 </div>
-                {app.status === "approved" ? (
-                  <button
-                    type="button"
-                    disabled={busyId === app.id}
-                    onClick={() => void downloadPass(app.id)}
-                    className="rounded-[10px] bg-brand-700 px-4 py-2 text-sm font-bold text-white hover:bg-brand-800 disabled:opacity-60"
-                  >
-                    Пропуск
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    disabled={busyId === app.id}
-                    onClick={() => void cancelApplication(app.id)}
-                    className="rounded-[10px] px-4 py-2 text-sm font-bold text-[#c94343] hover:bg-[#fdecec] disabled:opacity-60"
-                  >
-                    Отменить
-                  </button>
-                )}
-              </article>
+              </div>
             ))
           )}
         </div>
@@ -541,30 +635,30 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
               <p className="text-xs font-bold uppercase tracking-wide text-text-muted">
                 Сумма ЦТ
               </p>
-              <p className="mt-2 text-3xl font-black text-brand-900">{ctSum}</p>
+              <p className="mt-2 text-3xl font-black text-brand-900">
+                {publishedResults.length ? ctSum : "—"}
+              </p>
+            </div>
+            <div className="rounded-[14px] border border-border bg-white p-4 shadow-[var(--shadow-soft)]">
+              <p className="text-xs font-bold uppercase tracking-wide text-text-muted">
+                Аттестат ×10
+              </p>
+              <p className="mt-2 text-3xl font-black text-brand-900">
+                {attestatScaled !== null ? attestatScaled : "—"}
+              </p>
               <p className="mt-1 text-xs text-text-secondary">
-                из {results.length * 100} по {results.length} предметам
+                {attestatAvg !== null
+                  ? `Средний балл ${attestatAvg}`
+                  : "Заполните аттестат"}
               </p>
             </div>
             <div className="rounded-[14px] border border-border bg-white p-4 shadow-[var(--shadow-soft)]">
               <p className="text-xs font-bold uppercase tracking-wide text-text-muted">
-                Опубликовано
+                Конкурсный
               </p>
               <p className="mt-2 text-3xl font-black text-brand-900">
-                {results.length}
+                {competitiveTotal !== null ? competitiveTotal : "—"}
               </p>
-              <p className="mt-1 text-xs text-text-secondary">результатов</p>
-            </div>
-            <div className="rounded-[14px] border border-border bg-white p-4 shadow-[var(--shadow-soft)]">
-              <p className="text-xs font-bold uppercase tracking-wide text-text-muted">
-                Средний балл
-              </p>
-              <p className="mt-2 text-3xl font-black text-brand-900">
-                {results.length
-                  ? Math.round(ctSum / results.length)
-                  : "—"}
-              </p>
-              <p className="mt-1 text-xs text-text-secondary">по опубликованным</p>
             </div>
           </div>
 
@@ -575,28 +669,26 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
                   <th className="px-4 py-3">Предмет</th>
                   <th className="px-4 py-3">Дата</th>
                   <th className="px-4 py-3">Балл</th>
-                  <th className="px-4 py-3">Статус</th>
+                  <th className="px-4 py-3">Разбор</th>
                 </tr>
               </thead>
               <tbody>
-                {results.length === 0 ? (
+                {publishedResults.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan={4}
-                      className="px-4 py-6 text-text-secondary"
-                    >
+                    <td colSpan={4} className="px-4 py-6 text-text-secondary">
                       Пока нет опубликованных баллов.
                     </td>
                   </tr>
                 ) : (
-                  results.map((row) => {
+                  publishedResults.map((row) => {
                     const exam = examById.get(row.examId);
                     return (
-                      <tr key={row.id} className="border-b border-border last:border-0">
+                      <tr
+                        key={row.id}
+                        className="border-b border-border last:border-0"
+                      >
                         <td className="px-4 py-3 font-semibold text-brand-900">
-                          {exam
-                            ? subjectName(exam.subjectId)
-                            : "Предмет"}
+                          {exam ? subjectName(exam.subjectId) : "Предмет"}
                         </td>
                         <td className="px-4 py-3 text-text-secondary">
                           {exam ? formatExamWhen(exam.startsAt) : "—"}
@@ -605,9 +697,13 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
                           {row.score ?? "—"}
                         </td>
                         <td className="px-4 py-3">
-                          <span className="rounded-full bg-[#e4f6ec] px-2.5 py-0.5 text-xs font-bold text-[#176b45]">
-                            Завершено
-                          </span>
+                          <button
+                            type="button"
+                            onClick={() => openBreakdown(row)}
+                            className="text-sm font-bold text-brand-700 hover:underline"
+                          >
+                            Разбор
+                          </button>
                         </td>
                       </tr>
                     );
@@ -616,6 +712,97 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
               </tbody>
             </table>
           </div>
+        </div>
+      ) : null}
+
+      {!loading && !error && tab === "errors" ? (
+        <div className="space-y-4">
+          <label className="block text-sm">
+            <span className="mb-1 block font-semibold text-text-secondary">
+              Предмет для разбора
+            </span>
+            <select
+              value={errorsSubjectId || ""}
+              onChange={(e) =>
+                setErrorsSubjectId(e.target.value || null)
+              }
+              className="rounded-[10px] border border-border bg-white px-3 py-2 text-sm"
+            >
+              <option value="">Выберите предмет</option>
+              {publishedResults.map((row) => {
+                const exam = examById.get(row.examId);
+                if (!exam) return null;
+                return (
+                  <option key={row.id} value={exam.subjectId}>
+                    {subjectName(exam.subjectId)} — {row.score ?? "—"} баллов
+                  </option>
+                );
+              })}
+            </select>
+          </label>
+
+          {!errorsResult ? (
+            <p className="rounded-[14px] border border-border bg-white p-5 text-sm text-text-secondary shadow-[var(--shadow-soft)]">
+              Выберите предмет с опубликованными результатами или дождитесь
+              публикации баллов.
+            </p>
+          ) : (
+            <div className="grid gap-4 lg:grid-cols-3">
+              <section className="rounded-[14px] border border-border bg-white p-5 shadow-[var(--shadow-soft)]">
+                <h2 className="text-sm font-bold uppercase tracking-wide text-text-muted">
+                  Итог по варианту
+                </h2>
+                <p className="mt-3 text-sm font-semibold text-brand-900">
+                  {STUB_ERRORS.variantSummary}
+                </p>
+                <p className="mt-2 text-xs text-text-secondary">
+                  Предмет:{" "}
+                  {errorsResult && examById.get(errorsResult.examId)
+                    ? subjectName(
+                        examById.get(errorsResult.examId)!.subjectId,
+                      )
+                    : "—"}
+                  {" · "}балл {errorsResult.score ?? "—"}
+                </p>
+              </section>
+
+              <section className="rounded-[14px] border border-border bg-white p-5 shadow-[var(--shadow-soft)]">
+                <h2 className="text-sm font-bold uppercase tracking-wide text-text-muted">
+                  Слабые темы
+                </h2>
+                <ul className="mt-3 space-y-2">
+                  {STUB_ERRORS.weakTopics.map((item) => (
+                    <li
+                      key={item.topic}
+                      className="flex items-center justify-between gap-2 text-sm"
+                    >
+                      <span className="text-text-secondary">{item.topic}</span>
+                      <span className="font-bold text-brand-800">{item.share}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+
+              <section className="rounded-[14px] border border-border bg-white p-5 shadow-[var(--shadow-soft)]">
+                <h2 className="text-sm font-bold uppercase tracking-wide text-text-muted">
+                  Ошибки в бланке ответов
+                </h2>
+                <ul className="mt-3 space-y-3">
+                  {STUB_ERRORS.blankMistakes.map((item) => (
+                    <li
+                      key={item.num}
+                      className="rounded-[10px] border border-border bg-[#f8fafc] px-3 py-2 text-sm"
+                    >
+                      <span className="font-bold text-brand-900">
+                        Задание {item.num}
+                      </span>
+                      <p className="mt-0.5 text-text-secondary">{item.note}</p>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            </div>
+          )}
         </div>
       ) : null}
     </div>

@@ -3,11 +3,15 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { ApplicantProfile } from "@/lib/applicant";
-import { verificationStatusLabel } from "@/lib/applicant";
 import type { ChanceResult, Favorite } from "@/lib/chances";
-import { chanceStatusLabel } from "@/lib/chances";
+import { catalogChanceLabel } from "@/lib/chances-display";
 import type { CtResult } from "@/lib/results";
+import {
+  formatExamWhen,
+  type ExamApplication,
+} from "@/lib/exam";
 import { StatItem } from "@/components/ui/StatItem";
+import { cn } from "@/lib/utils";
 
 type CampaignStage = {
   id: string;
@@ -30,6 +34,8 @@ export function ApplicantDashboard() {
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [chances, setChances] = useState<ChanceResult[]>([]);
   const [campaign, setCampaign] = useState<ActiveCampaign>(null);
+  const [applications, setApplications] = useState<ExamApplication[]>([]);
+  const [passBusyId, setPassBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -40,13 +46,14 @@ export function ApplicantDashboard() {
       setLoading(true);
       setError(null);
       try {
-        const [profileRes, resultsRes, favRes, chanceRes, campRes] =
+        const [profileRes, resultsRes, favRes, chanceRes, campRes, appsRes] =
           await Promise.all([
             fetch("/api/applicant/profile"),
             fetch("/api/results/me"),
             fetch("/api/favorites"),
             fetch("/api/chances/me"),
             fetch("/api/catalog/campaigns/active"),
+            fetch("/api/exam/applications/me"),
           ]);
 
         const profileJson = (await profileRes.json().catch(() => null)) as
@@ -65,6 +72,9 @@ export function ApplicantDashboard() {
         const campJson = (await campRes.json().catch(() => null)) as
           | ActiveCampaign
           | { error?: string };
+        const appsJson = (await appsRes.json().catch(() => [])) as
+          | ExamApplication[]
+          | { error?: string };
 
         if (cancelled) return;
 
@@ -82,6 +92,9 @@ export function ApplicantDashboard() {
         }
         if (campRes.ok && campJson && !("error" in campJson)) {
           setCampaign(campJson as ActiveCampaign);
+        }
+        if (appsRes.ok && Array.isArray(appsJson)) {
+          setApplications(appsJson);
         }
       } catch {
         if (!cancelled) setError("Не удалось загрузить сводку");
@@ -111,10 +124,45 @@ export function ApplicantDashboard() {
   const competitive =
     attestatPoints !== null && publishedScores.length > 0
       ? Math.round((ctSum + attestatPoints) * 10) / 10
-      : null;
+      : attestatPoints !== null && publishedScores.length === 0
+        ? attestatPoints
+        : null;
 
   const stages = campaign?.stages || [];
   const now = Date.now();
+
+  const upcomingCt = useMemo(() => {
+    const approved = applications.filter((app) => app.status === "approved");
+    const future = approved
+      .filter((app) => {
+        if (!app.exam?.startsAt) return true;
+        return new Date(app.exam.startsAt).getTime() >= now - 86400000;
+      })
+      .sort((a, b) => {
+        const aAt = a.exam?.startsAt || "";
+        const bAt = b.exam?.startsAt || "";
+        return aAt.localeCompare(bAt);
+      });
+    return future.slice(0, 3);
+  }, [applications, now]);
+
+  async function downloadPass(applicationId: string) {
+    setPassBusyId(applicationId);
+    try {
+      const res = await fetch(`/api/exam/applications/${applicationId}/pass`);
+      const json = (await res.json().catch(() => ({}))) as {
+        downloadUrl?: string;
+        error?: string;
+      };
+      if (!res.ok || !json.downloadUrl) {
+        setError(json.error || "Пропуск ещё не готов");
+        return;
+      }
+      window.open(json.downloadUrl, "_blank", "noopener,noreferrer");
+    } finally {
+      setPassBusyId(null);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -124,26 +172,15 @@ export function ApplicantDashboard() {
             СТСР • Личный кабинет абитуриента
           </p>
           <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-brand-900">
-            Сводка абитуриента
+            Главная
           </h1>
-          <p className="mt-1 max-w-xl text-sm leading-relaxed text-text-secondary">
-            Баллы ЦТ, аттестат, календарь кампании и избранные специальности.
-          </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {campaign?.status === "active" ? (
-            <span className="inline-flex items-center gap-2 rounded-[8px] border border-[#1F8A58]/20 bg-[#E4F6EC] px-3 py-1.5 text-xs font-bold text-[#176B45]">
-              <span className="h-2 w-2 rounded-full bg-[#1F8A58]" />
-              Приёмная кампания {campaign.year} активна
-            </span>
-          ) : null}
-          <Link
-            href="/app/profile"
-            className="rounded-[10px] border border-border bg-white px-4 py-2.5 text-sm font-bold text-text-secondary shadow-[var(--shadow-soft)] hover:bg-[#f8fafc]"
-          >
-            Анкета и профиль
-          </Link>
-        </div>
+        {campaign?.status === "active" ? (
+          <span className="inline-flex items-center gap-2 rounded-[8px] border border-[#1F8A58]/20 bg-[#E4F6EC] px-3 py-1.5 text-xs font-bold text-[#176B45]">
+            <span className="h-2 w-2 rounded-full bg-[#1F8A58]" />
+            Приёмная кампания {campaign.year}
+          </span>
+        ) : null}
       </div>
 
       {error ? (
@@ -156,9 +193,12 @@ export function ApplicantDashboard() {
         <p className="text-sm text-text-muted">Загрузка…</p>
       ) : (
         <>
-          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <section className="grid gap-4 sm:grid-cols-3">
             <div className="rounded-[14px] border border-border bg-white p-5 shadow-[var(--shadow-soft)]">
-              <StatItem value={String(ctSum || "—")} label="Сумма баллов ЦТ" />
+              <StatItem
+                value={publishedScores.length ? String(ctSum) : "—"}
+                label="Сумма баллов ЦТ"
+              />
             </div>
             <div className="rounded-[14px] border border-border bg-white p-5 shadow-[var(--shadow-soft)]">
               <StatItem
@@ -169,54 +209,109 @@ export function ApplicantDashboard() {
             <div className="rounded-[14px] border border-border bg-white p-5 shadow-[var(--shadow-soft)]">
               <StatItem
                 value={competitive !== null ? String(competitive) : "—"}
-                label="Конкурсный балл"
+                label="Итоговый конкурсный балл"
               />
             </div>
-            <div className="rounded-[14px] border border-border bg-white p-5 shadow-[var(--shadow-soft)]">
-              <StatItem
-                value={verificationStatusLabel(profile?.verification?.status)}
-                label="Статус анкеты"
-              />
+          </section>
+
+          <section className="rounded-[14px] border border-border bg-white p-5 shadow-[var(--shadow-soft)]">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-sm font-bold uppercase tracking-wide text-text-muted">
+                Ближайшее ЦТ
+              </h2>
+              <Link
+                href="/app/ct"
+                className="text-sm font-semibold text-brand-700 hover:text-brand-900"
+              >
+                Мои ЦТ →
+              </Link>
             </div>
+            {upcomingCt.length === 0 ? (
+              <p className="mt-4 text-sm text-text-muted">
+                Нет одобренных записей на ЦТ. Запишитесь на вкладке «Запись на ЦТ».
+              </p>
+            ) : (
+              <ul className="mt-4 space-y-3">
+                {upcomingCt.map((app) => (
+                  <li
+                    key={app.id}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-border bg-[#f8fafc] px-4 py-3"
+                  >
+                    <div>
+                      <p className="text-sm font-bold text-brand-900">
+                        {app.exam?.subjectId
+                          ? `Предмет · ${app.exam.subjectId.slice(0, 8)}`
+                          : "Сеанс ЦТ"}
+                      </p>
+                      <p className="mt-0.5 text-sm text-text-secondary">
+                        {app.exam
+                          ? formatExamWhen(app.exam.startsAt)
+                          : "Дата уточняется"}
+                        {app.exam?.venue?.name ? ` · ${app.exam.venue.name}` : ""}
+                      </p>
+                      {app.passNumber ? (
+                        <p className="mt-1 text-xs text-text-muted">
+                          Пропуск № {app.passNumber}
+                        </p>
+                      ) : null}
+                    </div>
+                    <button
+                      type="button"
+                      disabled={passBusyId === app.id}
+                      onClick={() => void downloadPass(app.id)}
+                      className="rounded-[10px] bg-brand-700 px-4 py-2 text-sm font-bold text-white hover:bg-brand-800 disabled:opacity-60"
+                    >
+                      Скачать пропуск (PDF)
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
 
           <div className="grid gap-5 lg:grid-cols-2">
             <section className="rounded-[14px] border border-border bg-white p-5 shadow-[var(--shadow-soft)]">
               <h2 className="text-sm font-bold uppercase tracking-wide text-text-muted">
-                Календарь кампании
+                Порядок приёмной кампании
               </h2>
               <p className="mt-1 text-sm text-text-secondary">
                 {campaign
-                  ? `Кампания ${campaign.year} · ${campaign.isActive || campaign.status === "active" ? "Online" : campaign.status || "активна"}`
+                  ? `Кампания ${campaign.year}`
                   : "Активная кампания не найдена"}
               </p>
-              <ul className="mt-4 space-y-3">
+              <ol className="mt-4 space-y-3">
                 {stages.length === 0 ? (
                   <li className="text-sm text-text-muted">Этапы пока не заданы</li>
                 ) : (
-                  stages.map((stage) => {
+                  stages.map((stage, index) => {
                     const start = new Date(stage.startsOn).getTime();
                     const end = new Date(stage.endsOn).getTime() + 86400000 - 1;
                     const active = now >= start && now <= end;
                     return (
                       <li
                         key={stage.id}
-                        className={`rounded-[10px] border px-3 py-2.5 text-sm ${
+                        className={cn(
+                          "flex gap-3 rounded-[10px] border px-3 py-2.5 text-sm",
                           active
                             ? "border-brand-200 bg-brand-100 text-brand-900"
-                            : "border-border bg-[#f8fafc] text-text-secondary"
-                        }`}
+                            : "border-border bg-[#f8fafc] text-text-secondary",
+                        )}
                       >
-                        <div className="font-semibold">{stage.name}</div>
-                        <div className="mt-0.5 text-xs text-text-muted">
-                          {new Date(stage.startsOn).toLocaleDateString("ru-RU")} —{" "}
-                          {new Date(stage.endsOn).toLocaleDateString("ru-RU")}
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-xs font-extrabold text-brand-800 shadow-sm">
+                          {index + 1}
+                        </span>
+                        <div>
+                          <div className="font-semibold">{stage.name}</div>
+                          <div className="mt-0.5 text-xs text-text-muted">
+                            {new Date(stage.startsOn).toLocaleDateString("ru-RU")} —{" "}
+                            {new Date(stage.endsOn).toLocaleDateString("ru-RU")}
+                          </div>
                         </div>
                       </li>
                     );
                   })
                 )}
-              </ul>
+              </ol>
             </section>
 
             <section className="rounded-[14px] border border-border bg-white p-5 shadow-[var(--shadow-soft)]">
@@ -228,7 +323,7 @@ export function ApplicantDashboard() {
                   href="/app/universities"
                   className="text-sm font-semibold text-brand-700 hover:text-brand-900"
                 >
-                  Оценить шансы
+                  Каталог
                 </Link>
               </div>
               {favorites.length === 0 ? (
@@ -237,48 +332,36 @@ export function ApplicantDashboard() {
                 </p>
               ) : (
                 <ul className="mt-4 space-y-2">
-                  {favorites.slice(0, 5).map((fav) => {
+                  {favorites.slice(0, 6).map((fav) => {
                     const chance = chances.find(
                       (c) => c.specialtyId === fav.specialtyId,
                     );
                     return (
                       <li
                         key={fav.id}
-                        className="flex items-center justify-between gap-2 rounded-[10px] border border-border px-3 py-2 text-sm"
+                        className="flex items-center justify-between gap-2 rounded-[10px] border border-border px-3 py-2.5 text-sm"
                       >
                         <span className="font-medium text-text-primary">
-                          {fav.specialtyId.slice(0, 8)}…
+                          Специальность {fav.specialtyId.slice(0, 8)}…
                         </span>
-                        <span className="text-xs text-text-muted">
+                        <span
+                          className={cn(
+                            "text-xs font-semibold",
+                            chance?.status === "green" && "text-emerald-700",
+                            chance?.status === "yellow" && "text-amber-800",
+                            chance?.status === "red" && "text-rose-700",
+                            !chance && "text-text-muted",
+                          )}
+                        >
                           {chance
-                            ? chanceStatusLabel(chance.status)
-                            : "шанс не рассчитан"}
+                            ? catalogChanceLabel(chance.status)
+                            : "Нет оценки"}
                         </span>
                       </li>
                     );
                   })}
                 </ul>
               )}
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Link
-                  href="/app/ct"
-                  className="rounded-[10px] border border-border px-3 py-2 text-sm font-semibold text-text-secondary hover:bg-[#f8fafc]"
-                >
-                  Мои ЦТ
-                </Link>
-                <Link
-                  href="/app/certificate"
-                  className="rounded-[10px] border border-border px-3 py-2 text-sm font-semibold text-text-secondary hover:bg-[#f8fafc]"
-                >
-                  Аттестат
-                </Link>
-                <Link
-                  href="/app/universities"
-                  className="rounded-[10px] bg-brand-700 px-3 py-2 text-sm font-bold text-white hover:bg-brand-800"
-                >
-                  Университеты
-                </Link>
-              </div>
             </section>
           </div>
         </>

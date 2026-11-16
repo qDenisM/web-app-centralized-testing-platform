@@ -9,13 +9,12 @@ import {
   type CatalogSpecialty,
   type CatalogSubject,
 } from "@/lib/catalog";
+import type { ChanceResult, Favorite } from "@/lib/chances";
 import {
+  catalogChanceLabel,
   chanceDotClasses,
   chanceStatusClasses,
-  chanceStatusLabel,
-  type ChanceResult,
-  type Favorite,
-} from "@/lib/chances";
+} from "@/lib/chances-display";
 
 type UniversitiesCatalogProps = {
   specialties: CatalogSpecialty[];
@@ -263,6 +262,7 @@ export function UniversitiesCatalog({
         <p className="mt-1 text-sm text-text-secondary">
           Подбор вузов и колледжей с оценкой шансов по баллам ЦТ и аттестату.
         </p>
+        <ChanceLegend className="mt-3" />
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -612,6 +612,31 @@ export function UniversitiesCatalog({
   );
 }
 
+function ChanceLegend({ className }: { className?: string }) {
+  const items: { status: ChanceResult["status"]; label: string }[] = [
+    { status: "green", label: "Проходит" },
+    { status: "yellow", label: "На грани" },
+    { status: "red", label: "Не хватает" },
+  ];
+  return (
+    <div
+      className={`flex flex-wrap gap-4 text-sm text-text-secondary ${className || ""}`}
+    >
+      {items.map((item) => (
+        <span
+          key={item.status}
+          className="inline-flex items-center gap-2 font-semibold"
+        >
+          <span
+            className={`h-2.5 w-2.5 rounded-full ${chanceDotClasses(item.status)}`}
+          />
+          {item.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function ChanceBadge({ chance }: { chance: ChanceResult }) {
   return (
     <span
@@ -620,7 +645,7 @@ function ChanceBadge({ chance }: { chance: ChanceResult }) {
       <span
         className={`h-2.5 w-2.5 rounded-full ${chanceDotClasses(chance.status)}`}
       />
-      {chanceStatusLabel(chance.status)}
+      {catalogChanceLabel(chance.status)}
     </span>
   );
 }

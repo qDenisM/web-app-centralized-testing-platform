@@ -222,16 +222,9 @@ export function CertificateForm() {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-          Документы об образовании
-        </p>
-        <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-brand-900">
+        <h1 className="text-2xl font-extrabold tracking-tight text-brand-900">
           Аттестат и распознавание среднего балла
         </h1>
-        <p className="mt-1 text-sm text-text-secondary">
-          Загрузите скан или фото бланка. После загрузки поля заполнятся OCR
-          (сейчас это заглушка с фиксированными данными).
-        </p>
         {profile?.attestatAverage != null ? (
           <p className="mt-2 text-sm font-semibold text-brand-800">
             Текущий средний балл в профиле: {profile.attestatAverage}
@@ -287,7 +280,7 @@ export function CertificateForm() {
                   {fileName || "скан в MinIO"}
                 </span>
                 <span className="mt-4 rounded-[8px] border border-border bg-white px-3.5 py-1.5 text-xs font-bold text-brand-800">
-                  Заменить файл
+                  Выбрать фото
                 </span>
               </>
             ) : (
