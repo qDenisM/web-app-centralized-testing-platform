@@ -1,10 +1,16 @@
 import { Router } from "express";
-import { AppError } from "@abiturent/service-kit";
+import { z } from "zod";
+import { AppError, validate } from "@abiturent/service-kit";
 import { requireModerator } from "../auth.js";
 import { prisma } from "../db.js";
 import { verificationQueueJson } from "../serializers.js";
 
 export const moderatorRoutes = Router();
+
+const DecideSchema = z.object({
+  decision: z.enum(["approved", "returned", "rejected"]),
+  reason: z.string().optional(),
+});
 
 moderatorRoutes.get(
   "/moderator/verifications",
@@ -78,14 +84,83 @@ moderatorRoutes.get(
   ...requireModerator,
   async (req, res, next) => {
     try {
-      const row = await prisma.verification.findUnique({
+      const moderatorId = req.user?.sub;
+      if (!moderatorId) throw AppError.unauthorized();
+
+      let row = await prisma.verification.findUnique({
         where: { id: String(req.params.id) },
         include: { profile: true },
       });
       if (!row) {
         throw AppError.notFound("Verification not found");
       }
+
+      if (
+        row.status === "pending" &&
+        (!row.lockedBy || row.lockedBy === moderatorId)
+      ) {
+        row = await prisma.verification.update({
+          where: { id: row.id },
+          data: { lockedBy: moderatorId },
+          include: { profile: true },
+        });
+      }
+
       res.status(200).json(verificationQueueJson(row));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+moderatorRoutes.post(
+  "/moderator/verifications/:id/decide",
+  ...requireModerator,
+  validate(DecideSchema),
+  async (req, res, next) => {
+    try {
+      const moderatorId = req.user?.sub;
+      if (!moderatorId) throw AppError.unauthorized();
+
+      const id = String(req.params.id);
+      const body = DecideSchema.parse(req.body);
+
+      const row = await prisma.verification.findUnique({
+        where: { id },
+        include: { profile: true },
+      });
+      if (!row) {
+        throw AppError.notFound("Verification not found");
+      }
+
+      if (row.status !== "pending") {
+        throw AppError.conflict("Решение уже вынесено");
+      }
+
+      if (row.lockedBy && row.lockedBy !== moderatorId) {
+        throw AppError.forbidden("Заявку проверяет другой модератор");
+      }
+
+      if (
+        (body.decision === "returned" || body.decision === "rejected") &&
+        !body.reason?.trim()
+      ) {
+        throw AppError.badRequest("Укажите причину");
+      }
+
+      const updated = await prisma.verification.update({
+        where: { id },
+        data: {
+          status: body.decision,
+          rejectReason:
+            body.decision === "approved" ? null : body.reason!.trim(),
+          lockedBy: moderatorId,
+          decidedAt: new Date(),
+        },
+        include: { profile: true },
+      });
+
+      res.status(200).json(verificationQueueJson(updated));
     } catch (err) {
       next(err);
     }
