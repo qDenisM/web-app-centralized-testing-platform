@@ -41,3 +41,5 @@ yarn-error.log*
 infra/**/data/
 
 AGENTS.mdapps/notification-service/generated/
+
+AGENTS.md

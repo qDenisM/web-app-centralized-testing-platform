@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { Logo } from "@/components/layout/Logo";
 import { LogoutButton } from "@/components/auth/LogoutButton";
+import { NotificationsBell } from "@/components/notifications/NotificationsBell";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -60,7 +61,8 @@ export function ApplicantShell({ children }: ApplicantShellProps) {
             <div className="hidden text-sm font-semibold text-text-secondary sm:block md:ml-0">
               Кабинет абитуриента
             </div>
-            <div className="ml-auto flex items-center gap-3">
+            <div className="ml-auto flex items-center gap-2 sm:gap-3">
+              <NotificationsBell />
               <span className="hidden text-sm font-medium text-text-muted sm:inline">
                 Абитуриент
               </span>
