@@ -6,7 +6,6 @@ type AuthCardProps = {
   children: ReactNode;
 };
 
-/** Карточка входа/регистрации: тёмная панель слева + форма справа. */
 export function AuthCard({ aside, children }: AuthCardProps) {
   return (
     <section className="py-10 md:py-14">

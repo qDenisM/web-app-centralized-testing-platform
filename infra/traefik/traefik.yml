@@ -1,6 +1,3 @@
-# Базовый Traefik для локальной разработки (Этап 0).
-# Маршруты к apps добавятся labels в docker-compose на следующих этапах.
-
 api:
   dashboard: true
   insecure: true

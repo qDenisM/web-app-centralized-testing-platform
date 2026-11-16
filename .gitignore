@@ -33,3 +33,5 @@ yarn-error.log*
 
 # docker volumes / local data (if ever mounted here)
 infra/**/data/
+
+AGENTS.md

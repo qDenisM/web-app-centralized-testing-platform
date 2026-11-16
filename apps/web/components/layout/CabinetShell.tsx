@@ -8,7 +8,6 @@ type CabinetShellProps = {
   children: ReactNode;
 };
 
-/** Простая оболочка кабинета (сайдбар — на следующих этапах). */
 export function CabinetShell({ title, children }: CabinetShellProps) {
   return (
     <div className="flex min-h-full flex-col">
