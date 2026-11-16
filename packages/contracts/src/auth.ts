@@ -60,3 +60,9 @@ export const BlockUserRequestSchema = z.object({
 
 export type BlockUserRequest = z.infer<typeof BlockUserRequestSchema>;
 
+export const PatchUserRoleRequestSchema = z.object({
+  role: RoleSchema,
+});
+
+export type PatchUserRoleRequest = z.infer<typeof PatchUserRoleRequestSchema>;
+

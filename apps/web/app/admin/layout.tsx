@@ -1,9 +1,9 @@
-import { CabinetShell } from "@/components/layout/CabinetShell";
+import { AdminShell } from "@/components/layout/AdminShell";
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <CabinetShell title="Админ">{children}</CabinetShell>;
+  return <AdminShell>{children}</AdminShell>;
 }

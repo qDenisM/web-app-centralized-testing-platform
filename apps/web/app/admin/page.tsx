@@ -1,12 +1,5 @@
+import { AdminDashboard } from "@/components/admin/AdminDashboard";
+
 export default function AdminHomePage() {
-  return (
-    <div className="space-y-3">
-      <h1 className="text-2xl font-extrabold tracking-tight text-brand-900">
-        Кабинет администратора
-      </h1>
-      <p className="max-w-xl text-sm leading-relaxed text-text-secondary">
-        Заглушка Этапа 2. Управление каталогом и кампаниями — позже.
-      </p>
-    </div>
-  );
+  return <AdminDashboard />;
 }
