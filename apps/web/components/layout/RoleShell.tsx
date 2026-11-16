@@ -87,7 +87,7 @@ export function RoleShell({
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="border-b border-border bg-white">
-          <div className="flex h-16 items-center justify-between gap-3 px-4 md:px-6">
+          <div className="mx-auto flex h-16 w-full max-w-[1280px] items-center justify-between gap-3 px-4 md:px-8 lg:px-10">
             <div className="md:hidden">
               <Logo compact />
             </div>
@@ -98,7 +98,7 @@ export function RoleShell({
             </div>
           </div>
           {showMobileNav ? (
-            <nav className="flex gap-1 overflow-x-auto border-t border-border px-3 py-2 md:hidden">
+            <nav className="mx-auto flex w-full max-w-[1280px] gap-1 overflow-x-auto border-t border-border px-4 py-2 md:hidden md:px-8">
               {navItems.map((item) => {
                 const active = isActive(pathname, item);
                 return (
@@ -120,7 +120,11 @@ export function RoleShell({
           ) : null}
         </header>
 
-        <main className="flex-1 px-4 py-6 md:px-6">{children}</main>
+        <main className="flex-1">
+          <div className="mx-auto w-full max-w-[1280px] px-4 py-6 md:px-8 md:py-8 lg:px-10">
+            {children}
+          </div>
+        </main>
         <CabinetFooter {...footer} />
       </div>
     </div>
