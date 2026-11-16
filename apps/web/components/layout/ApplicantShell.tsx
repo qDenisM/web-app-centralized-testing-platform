@@ -10,10 +10,9 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/app", label: "Главная", exact: true },
-  { href: "/app/profile", label: "Профиль" },
-  { href: "/app/certificate", label: "Аттестат" },
   { href: "/app/ct", label: "Мои ЦТ" },
   { href: "/app/universities", label: "Университеты" },
+  { href: "/app/certificate", label: "Аттестат" },
 ];
 
 type ApplicantShellProps = {
@@ -62,6 +61,9 @@ export function ApplicantShell({ children }: ApplicantShellProps) {
               Кабинет абитуриента
             </div>
             <div className="ml-auto flex items-center gap-2 sm:gap-3">
+              <span className="hidden rounded-full bg-brand-100 px-3 py-1 text-xs font-semibold text-brand-900 sm:inline">
+                Кампания: 2026 · Online
+              </span>
               <NotificationsBell />
               <span className="hidden text-sm font-medium text-text-muted sm:inline">
                 Абитуриент

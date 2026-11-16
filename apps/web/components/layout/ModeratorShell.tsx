@@ -8,7 +8,9 @@ import { LogoutButton } from "@/components/auth/LogoutButton";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: "/moderator", label: "Проверка данных", exact: true },
+  { href: "/moderator", label: "Обзор очереди", exact: true },
+  { href: "/moderator/docs", label: "Проверка данных" },
+  { href: "/moderator/applications", label: "Заявки на ЦТ" },
   { href: "/moderator/history", label: "История решений" },
 ];
 
@@ -61,6 +63,9 @@ export function ModeratorShell({ children }: ModeratorShellProps) {
               Кабинет модератора
             </div>
             <div className="ml-auto flex items-center gap-3">
+              <span className="hidden rounded-full bg-brand-100 px-3 py-1 text-xs font-semibold text-brand-900 sm:inline">
+                Кампания: 2026 · Online
+              </span>
               <span className="hidden text-sm font-medium text-text-muted sm:inline">
                 Модератор
               </span>

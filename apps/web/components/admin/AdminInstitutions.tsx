@@ -91,7 +91,9 @@ export function AdminInstitutions() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-extrabold tracking-tight text-brand-900">Вузы</h1>
+        <h1 className="text-2xl font-extrabold tracking-tight text-brand-900">
+          Университеты и колледжи
+        </h1>
         <p className="mt-1 text-sm text-text-secondary">
           CRUD учебных заведений каталога.
         </p>

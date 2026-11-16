@@ -48,10 +48,10 @@ export function AdminDashboard() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-extrabold tracking-tight text-brand-900">
-          Дашборд
+          Оперативный обзор системы
         </h1>
         <p className="mt-1 text-sm text-text-secondary">
-          Сводные счётчики из PostgreSQL по identity и catalog.
+          Сводные счётчики по пользователям, каталогу и приёмной кампании.
         </p>
       </div>
 

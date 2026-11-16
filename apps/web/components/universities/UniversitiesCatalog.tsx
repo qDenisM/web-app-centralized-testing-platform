@@ -258,7 +258,7 @@ export function UniversitiesCatalog({
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-extrabold tracking-tight text-brand-900">
-          Каталог специальностей
+          Подбор специальностей по баллам
         </h1>
         <p className="mt-1 text-sm text-text-secondary">
           Подбор вузов и колледжей с оценкой шансов по баллам ЦТ и аттестату.

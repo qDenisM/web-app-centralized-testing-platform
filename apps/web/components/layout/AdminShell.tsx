@@ -8,12 +8,12 @@ import { LogoutButton } from "@/components/auth/LogoutButton";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: "/admin", label: "Дашборд", exact: true },
+  { href: "/admin", label: "Обзор", exact: true },
   { href: "/admin/users", label: "Пользователи" },
-  { href: "/admin/universities", label: "Вузы" },
+  { href: "/admin/campaign", label: "Приёмная кампания" },
+  { href: "/admin/universities", label: "Вузы и колледжи" },
   { href: "/admin/specialties", label: "Специальности" },
-  { href: "/admin/subjects", label: "Предметы" },
-  { href: "/admin/campaign", label: "Кампания" },
+  { href: "/admin/subjects", label: "Предметы ЦТ" },
 ];
 
 type AdminShellProps = {
@@ -65,6 +65,9 @@ export function AdminShell({ children }: AdminShellProps) {
               Кабинет администратора
             </div>
             <div className="ml-auto flex items-center gap-3">
+              <span className="hidden rounded-full bg-brand-100 px-3 py-1 text-xs font-semibold text-brand-900 sm:inline">
+                Кампания: 2026 · Online
+              </span>
               <span className="hidden text-sm font-medium text-text-muted sm:inline">
                 Администратор
               </span>

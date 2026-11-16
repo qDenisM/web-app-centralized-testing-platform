@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/examiner", label: "Результаты ЦТ", exact: true },
-  { href: "/examiner/exams", label: "Экзамены" },
+  { href: "/examiner/exams", label: "Экзамены ЦТ" },
   { href: "/examiner/applicants", label: "Абитуриенты" },
 ];
 
@@ -62,6 +62,9 @@ export function ExaminerShell({ children }: ExaminerShellProps) {
               Кабинет экзаменатора
             </div>
             <div className="ml-auto flex items-center gap-3">
+              <span className="hidden rounded-full bg-brand-100 px-3 py-1 text-xs font-semibold text-brand-900 sm:inline">
+                Кампания: 2026 · Online
+              </span>
               <span className="hidden text-sm font-medium text-text-muted sm:inline">
                 Экзаменатор
               </span>

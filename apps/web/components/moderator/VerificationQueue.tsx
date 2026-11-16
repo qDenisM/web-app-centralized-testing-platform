@@ -12,8 +12,18 @@ import { cn } from "@/lib/utils";
 
 type Tab = "all" | "pending" | "returned" | "rejected";
 
-export function VerificationQueue() {
-  const [tab, setTab] = useState<Tab>("pending");
+type VerificationQueueProps = {
+  title?: string;
+  subtitle?: string;
+  initialTab?: Tab;
+};
+
+export function VerificationQueue({
+  title = "Обзор очереди",
+  subtitle = "Проверка паспортов и документов об образовании перед допуском к ЦТ.",
+  initialTab = "pending",
+}: VerificationQueueProps) {
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [q, setQ] = useState("");
   const [query, setQuery] = useState("");
   const [data, setData] = useState<ModeratorQueueResponse | null>(null);
@@ -66,11 +76,9 @@ export function VerificationQueue() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight text-brand-900">
-            Очередь проверки персональных данных
+            {title}
           </h1>
-          <p className="mt-1 text-sm text-text-secondary">
-            Проверка паспортов и документов об образовании перед допуском к ЦТ.
-          </p>
+          <p className="mt-1 text-sm text-text-secondary">{subtitle}</p>
         </div>
         {nextFree ? (
           <Link

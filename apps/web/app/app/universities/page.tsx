@@ -23,7 +23,9 @@ export default async function UniversitiesPage() {
   if (error) {
     return (
       <div className="rounded-[14px] border border-border bg-white p-6 shadow-[var(--shadow-soft)]">
-        <h1 className="text-xl font-extrabold text-brand-900">Университеты</h1>
+        <h1 className="text-xl font-extrabold text-brand-900">
+          Подбор специальностей по баллам
+        </h1>
         <p className="mt-2 text-sm text-text-secondary">{error}</p>
       </div>
     );
