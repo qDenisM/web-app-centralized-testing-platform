@@ -3,10 +3,11 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { FormButton } from "@/components/ui/FormButton";
 import { Input } from "@/components/ui/Input";
-import type {
-  ApplicantProfile,
-  OcrAttestatResponse,
-  UploadUrlResponse,
+import {
+  verificationStatusLabel,
+  type ApplicantProfile,
+  type OcrAttestatResponse,
+  type UploadUrlResponse,
 } from "@/lib/applicant";
 import { cn } from "@/lib/utils";
 
@@ -234,6 +235,14 @@ export function CertificateForm() {
         {profile?.attestatAverage != null ? (
           <p className="mt-2 text-sm font-semibold text-brand-800">
             Текущий средний балл в профиле: {profile.attestatAverage}
+          </p>
+        ) : null}
+        {profile?.verification?.status ? (
+          <p className="mt-1 text-sm text-text-secondary">
+            Статус анкеты:{" "}
+            <span className="font-semibold text-brand-800">
+              {verificationStatusLabel(profile.verification.status)}
+            </span>
           </p>
         ) : null}
       </div>

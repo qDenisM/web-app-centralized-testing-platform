@@ -40,3 +40,20 @@ export type OcrAttestatResponse = {
   attestatIssuedOn: string;
   lowConfidenceFields: string[];
 };
+
+export function verificationStatusLabel(status: string | null | undefined): string {
+  switch (status) {
+    case "draft":
+      return "черновик";
+    case "pending":
+      return "на проверке";
+    case "approved":
+      return "подтверждено";
+    case "rejected":
+      return "отказано";
+    case "returned":
+      return "возвращено на доработку";
+    default:
+      return status || "нет статуса";
+  }
+}

@@ -240,3 +240,61 @@ profilesRoutes.post(
     }
   },
 );
+
+profilesRoutes.post(
+  "/profile/me/submit",
+  ...requireApplicant,
+  async (req, res, next) => {
+    try {
+      const userId = req.user?.sub;
+      if (!userId) throw AppError.unauthorized();
+
+      const profile = await getOrCreateProfile(userId);
+      const latest = profile.verifications[0];
+
+      if (!profile.birthDate || !profile.passportSeries || !profile.passportNumber) {
+        throw AppError.badRequest("Заполните паспортные данные в анкете");
+      }
+
+      if (!profile.storageKey) {
+        throw AppError.badRequest("Загрузите скан аттестата");
+      }
+
+      if (profile.attestatAverage == null) {
+        throw AppError.badRequest("Укажите средний балл аттестата");
+      }
+
+      if (!latest) {
+        throw AppError.badRequest("Нет записи проверки");
+      }
+
+      if (latest.status === "pending") {
+        throw AppError.conflict("Анкета уже на проверке");
+      }
+
+      if (latest.status === "approved") {
+        throw AppError.conflict("Анкета уже подтверждена");
+      }
+
+      await prisma.verification.update({
+        where: { id: latest.id },
+        data: {
+          status: "pending",
+          submittedAt: new Date(),
+          rejectReason: null,
+          decidedAt: null,
+          lockedBy: null,
+        },
+      });
+
+      const updated = await prisma.applicantProfile.findUnique({
+        where: { userId },
+        include: profileInclude,
+      });
+
+      res.status(200).json(profileJson(updated!));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
