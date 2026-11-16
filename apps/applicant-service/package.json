@@ -13,12 +13,15 @@
     "migrate": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
     "seed": "prisma db seed",
+    "storage:init": "tsx scripts/ensure-bucket.mjs",
     "postinstall": "prisma generate"
   },
   "dependencies": {
     "@abiturent/auth": "0.1.0",
     "@abiturent/contracts": "0.1.0",
     "@abiturent/service-kit": "0.1.0",
+    "@aws-sdk/client-s3": "^3.787.0",
+    "@aws-sdk/s3-request-presigner": "^3.787.0",
     "@prisma/client": "^6.5.0",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
