@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { Institution } from "@/lib/admin";
 import { Input } from "@/components/ui/Input";
 import { FormButton } from "@/components/ui/FormButton";
+import { Modal } from "@/components/ui/Modal";
 
 const emptyForm = {
   type: "university",
@@ -15,9 +16,13 @@ const emptyForm = {
 
 export function AdminInstitutions() {
   const [items, setItems] = useState<Institution[]>([]);
-  const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editing, setEditing] = useState<Institution | null>(null);
+  const [form, setForm] = useState(emptyForm);
+  const [deleteTarget, setDeleteTarget] = useState<Institution | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -43,60 +48,109 @@ export function AdminInstitutions() {
     void load();
   }, [load]);
 
-  async function createInstitution(e: React.FormEvent) {
-    e.preventDefault();
+  function openCreate() {
+    setEditing(null);
+    setForm(emptyForm);
+    setEditOpen(true);
+  }
+
+  function openEdit(item: Institution) {
+    setEditing(item);
+    setForm({
+      type: item.type,
+      shortName: item.shortName,
+      fullName: item.fullName,
+      city: item.city || "",
+      isPublished: item.isPublished,
+    });
+    setEditOpen(true);
+  }
+
+  async function saveInstitution() {
+    setBusy(true);
     setError(null);
-    const res = await fetch("/api/admin/institutions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    try {
+      const payload = {
         ...form,
         city: form.city || null,
-      }),
-    });
-    const json = (await res.json().catch(() => ({}))) as { error?: string };
-    if (!res.ok) {
-      setError(json.error || "Не удалось создать вуз");
-      return;
+      };
+      const res = editing
+        ? await fetch(`/api/admin/institutions/${editing.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          })
+        : await fetch("/api/admin/institutions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setError(json.error || "Не удалось сохранить");
+        return;
+      }
+      setEditOpen(false);
+      await load();
+    } finally {
+      setBusy(false);
     }
-    setForm(emptyForm);
-    await load();
   }
 
-  async function togglePublished(item: Institution) {
-    const res = await fetch(`/api/admin/institutions/${item.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isPublished: !item.isPublished }),
-    });
-    if (!res.ok) {
-      const json = (await res.json().catch(() => ({}))) as { error?: string };
-      setError(json.error || "Не удалось обновить");
-      return;
+  async function hideFromCatalog() {
+    if (!deleteTarget) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/admin/institutions/${deleteTarget.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isPublished: false }),
+      });
+      if (!res.ok) {
+        const json = (await res.json().catch(() => ({}))) as { error?: string };
+        setError(json.error || "Не удалось скрыть");
+        return;
+      }
+      setDeleteTarget(null);
+      await load();
+    } finally {
+      setBusy(false);
     }
-    await load();
   }
 
-  async function remove(item: Institution) {
-    if (!window.confirm(`Удалить «${item.shortName}»?`)) return;
-    const res = await fetch(`/api/admin/institutions/${item.id}`, { method: "DELETE" });
-    if (!res.ok) {
-      const json = (await res.json().catch(() => ({}))) as { error?: string };
-      setError(json.error || "Не удалось удалить");
-      return;
+  async function hardDelete() {
+    if (!deleteTarget) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/admin/institutions/${deleteTarget.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const json = (await res.json().catch(() => ({}))) as { error?: string };
+        setError(json.error || "Не удалось удалить");
+        return;
+      }
+      setDeleteTarget(null);
+      await load();
+    } finally {
+      setBusy(false);
     }
-    await load();
   }
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-extrabold tracking-tight text-brand-900">
-          Университеты и колледжи
-        </h1>
-        <p className="mt-1 text-sm text-text-secondary">
-          CRUD учебных заведений каталога.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-extrabold tracking-tight text-brand-900">
+            Университеты и колледжи
+          </h1>
+          <p className="mt-1 text-sm text-text-secondary">
+            Справочник учебных заведений каталога.
+          </p>
+        </div>
+        <FormButton type="button" className="w-auto px-4 py-2.5" onClick={openCreate}>
+          + Добавить заведение
+        </FormButton>
       </div>
 
       {error ? (
@@ -105,49 +159,103 @@ export function AdminInstitutions() {
         </p>
       ) : null}
 
-      <form
-        onSubmit={(e) => void createInstitution(e)}
-        className="grid gap-3 rounded-[14px] border border-border bg-white p-5 sm:grid-cols-2"
-      >
-        <Input
-          label="Краткое название"
-          name="shortName"
-          value={form.shortName}
-          onChange={(e) => setForm((f) => ({ ...f, shortName: e.target.value }))}
-          required
-        />
-        <Input
-          label="Полное название"
-          name="fullName"
-          value={form.fullName}
-          onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))}
-          required
-        />
-        <Input
-          label="Город"
-          name="city"
-          value={form.city}
-          onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
-        />
-        <label className="flex items-center gap-2 text-sm font-semibold text-text-secondary">
-          <input
-            type="checkbox"
-            checked={form.isPublished}
-            onChange={(e) => setForm((f) => ({ ...f, isPublished: e.target.checked }))}
-          />
-          Опубликован в каталоге
-        </label>
-        <FormButton type="submit" className="sm:col-span-2 sm:w-auto">
-          Добавить вуз
-        </FormButton>
-      </form>
-
       <InstitutionTable
         loading={loading}
         items={items}
-        onToggle={togglePublished}
-        onRemove={remove}
+        onEdit={openEdit}
+        onDelete={setDeleteTarget}
       />
+
+      <Modal
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        title="Параметры заведения"
+        footer={
+          <>
+            <FormButton
+              type="button"
+              variant="secondary"
+              className="w-auto px-4 py-2.5"
+              onClick={() => setEditOpen(false)}
+              disabled={busy}
+            >
+              Отмена
+            </FormButton>
+            <FormButton
+              type="button"
+              className="w-auto px-4 py-2.5"
+              disabled={busy}
+              onClick={() => void saveInstitution()}
+            >
+              Сохранить
+            </FormButton>
+          </>
+        }
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Input
+            label="Краткое название"
+            name="shortName"
+            value={form.shortName}
+            onChange={(e) => setForm((f) => ({ ...f, shortName: e.target.value }))}
+            required
+          />
+          <Input
+            label="Полное название"
+            name="fullName"
+            value={form.fullName}
+            onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))}
+            required
+          />
+          <Input
+            label="Город"
+            name="city"
+            value={form.city}
+            onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
+          />
+          <label className="flex items-center gap-2 text-sm font-semibold text-text-secondary sm:col-span-2">
+            <input
+              type="checkbox"
+              checked={form.isPublished}
+              onChange={(e) => setForm((f) => ({ ...f, isPublished: e.target.checked }))}
+            />
+            Опубликован в каталоге
+          </label>
+        </div>
+      </Modal>
+
+      <Modal
+        open={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        title="Удаление учебного заведения"
+        footer={
+          <>
+            <FormButton
+              type="button"
+              variant="secondary"
+              className="w-auto px-4 py-2.5"
+              disabled={busy}
+              onClick={() => void hideFromCatalog()}
+            >
+              Скрыть из каталога
+            </FormButton>
+            <FormButton
+              type="button"
+              variant="destructive"
+              className="w-auto px-4 py-2.5"
+              disabled={busy}
+              onClick={() => void hardDelete()}
+            >
+              Всё равно удалить
+            </FormButton>
+          </>
+        }
+      >
+        <p className="text-sm text-text-secondary">
+          Заведение «{deleteTarget?.shortName}». Скрытие уберёт его из каталога для
+          абитуриентов, полное удаление необратимо.
+        </p>
+      </Modal>
     </div>
   );
 }
@@ -155,13 +263,13 @@ export function AdminInstitutions() {
 function InstitutionTable({
   loading,
   items,
-  onToggle,
-  onRemove,
+  onEdit,
+  onDelete,
 }: {
   loading: boolean;
   items: Institution[];
-  onToggle: (item: Institution) => Promise<void>;
-  onRemove: (item: Institution) => Promise<void>;
+  onEdit: (item: Institution) => void;
+  onDelete: (item: Institution) => void;
 }) {
   return (
     <div className="overflow-x-auto rounded-[14px] border border-border bg-white">
@@ -196,22 +304,25 @@ function InstitutionTable({
                 </td>
                 <td className="px-4 py-3">{item.city || "—"}</td>
                 <td className="px-4 py-3">
-                  <button
-                    type="button"
-                    onClick={() => void onToggle(item)}
-                    className="text-sm font-semibold text-brand-700"
-                  >
-                    {item.isPublished ? "Опубликован" : "Скрыт"}
-                  </button>
+                  {item.isPublished ? "Опубликован" : "Скрыт"}
                 </td>
                 <td className="px-4 py-3">
-                  <button
-                    type="button"
-                    onClick={() => void onRemove(item)}
-                    className="text-sm font-semibold text-red-600"
-                  >
-                    Удалить
-                  </button>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => onEdit(item)}
+                      className="text-sm font-semibold text-brand-700"
+                    >
+                      Изменить
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDelete(item)}
+                      className="text-sm font-semibold text-red-600"
+                    >
+                      Удалить
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))

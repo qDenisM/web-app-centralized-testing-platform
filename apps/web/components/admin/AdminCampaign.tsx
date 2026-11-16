@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { Campaign } from "@/lib/admin";
 import { Input } from "@/components/ui/Input";
 import { FormButton } from "@/components/ui/FormButton";
+import { Modal } from "@/components/ui/Modal";
 
 export function AdminCampaign() {
   const [items, setItems] = useState<Campaign[]>([]);
@@ -14,6 +15,8 @@ export function AdminCampaign() {
   const [endsOn, setEndsOn] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [stageModalOpen, setStageModalOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -70,26 +73,33 @@ export function AdminCampaign() {
     await load();
   }
 
-  async function addStage(e: React.FormEvent) {
-    e.preventDefault();
+  async function addStage() {
     if (!stageCampaignId) return;
-    const res = await fetch(`/api/admin/campaigns/${stageCampaignId}/stages`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sortOrder: 1,
-        name: stageName,
-        startsOn,
-        endsOn,
-      }),
-    });
-    const json = (await res.json().catch(() => ({}))) as { error?: string };
-    if (!res.ok) {
-      setError(json.error || "Не удалось добавить этап");
-      return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/admin/campaigns/${stageCampaignId}/stages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sortOrder: 1,
+          name: stageName,
+          startsOn,
+          endsOn,
+        }),
+      });
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setError(json.error || "Не удалось добавить этап");
+        return;
+      }
+      setStageName("");
+      setStartsOn("");
+      setEndsOn("");
+      setStageModalOpen(false);
+      await load();
+    } finally {
+      setBusy(false);
     }
-    setStageName("");
-    await load();
   }
 
   async function removeStage(stageId: string) {
@@ -135,14 +145,11 @@ export function AdminCampaign() {
         </FormButton>
       </form>
 
-      <form
-        onSubmit={(e) => void addStage(e)}
-        className="grid gap-3 rounded-[14px] border border-border bg-white p-5 sm:grid-cols-2"
-      >
-        <label className="block space-y-1.5 text-sm sm:col-span-2">
-          <span className="font-semibold text-text-secondary">Кампания</span>
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="block space-y-1.5 text-sm">
+          <span className="font-semibold text-text-secondary">Кампания для этапа</span>
           <select
-            className="w-full rounded-[10px] border border-border px-3 py-2"
+            className="rounded-[10px] border border-border bg-white px-3 py-2"
             value={stageCampaignId}
             onChange={(e) => setStageCampaignId(e.target.value)}
           >
@@ -153,33 +160,67 @@ export function AdminCampaign() {
             ))}
           </select>
         </label>
-        <Input
-          label="Название этапа"
-          name="stageName"
-          value={stageName}
-          onChange={(e) => setStageName(e.target.value)}
-          required
-        />
-        <Input
-          label="Начало"
-          name="startsOn"
-          type="date"
-          value={startsOn}
-          onChange={(e) => setStartsOn(e.target.value)}
-          required
-        />
-        <Input
-          label="Окончание"
-          name="endsOn"
-          type="date"
-          value={endsOn}
-          onChange={(e) => setEndsOn(e.target.value)}
-          required
-        />
-        <FormButton type="submit" className="sm:col-span-2 sm:w-auto">
-          Добавить этап
+        <FormButton
+          type="button"
+          className="w-auto px-4 py-2.5"
+          onClick={() => setStageModalOpen(true)}
+        >
+          + Этап кампании
         </FormButton>
-      </form>
+      </div>
+
+      <Modal
+        open={stageModalOpen}
+        onClose={() => setStageModalOpen(false)}
+        title="Этап приёмной кампании"
+        footer={
+          <>
+            <FormButton
+              type="button"
+              variant="secondary"
+              className="w-auto px-4 py-2.5"
+              onClick={() => setStageModalOpen(false)}
+              disabled={busy}
+            >
+              Отмена
+            </FormButton>
+            <FormButton
+              type="button"
+              className="w-auto px-4 py-2.5"
+              disabled={busy}
+              onClick={() => void addStage()}
+            >
+              Сохранить
+            </FormButton>
+          </>
+        }
+      >
+        <div className="grid gap-3">
+          <Input
+            label="Название этапа"
+            name="stageName"
+            value={stageName}
+            onChange={(e) => setStageName(e.target.value)}
+            required
+          />
+          <Input
+            label="Начало"
+            name="startsOn"
+            type="date"
+            value={startsOn}
+            onChange={(e) => setStartsOn(e.target.value)}
+            required
+          />
+          <Input
+            label="Окончание"
+            name="endsOn"
+            type="date"
+            value={endsOn}
+            onChange={(e) => setEndsOn(e.target.value)}
+            required
+          />
+        </div>
+      </Modal>
 
       {loading ? (
         <p className="text-sm text-text-muted">Загрузка…</p>

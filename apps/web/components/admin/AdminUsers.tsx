@@ -8,8 +8,14 @@ import {
 } from "@/lib/admin";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/Input";
+import { Drawer } from "@/components/ui/Drawer";
+import { Modal } from "@/components/ui/Modal";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { FormButton } from "@/components/ui/FormButton";
 
 const ROLES = ["applicant", "moderator", "examiner", "admin"] as const;
+
+type DrawerTab = "profile" | "role" | "history";
 
 export function AdminUsers() {
   const [q, setQ] = useState("");
@@ -17,9 +23,16 @@ export function AdminUsers() {
   const [items, setItems] = useState<AdminUser[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [blockId, setBlockId] = useState<string | null>(null);
-  const [blockReason, setBlockReason] = useState("Нарушение правил");
-  const [busyId, setBusyId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const [drawerUser, setDrawerUser] = useState<AdminUser | null>(null);
+  const [drawerTab, setDrawerTab] = useState<DrawerTab>("profile");
+  const [pendingRole, setPendingRole] = useState("");
+  const [roleConfirmOpen, setRoleConfirmOpen] = useState(false);
+
+  const [blockOpen, setBlockOpen] = useState(false);
+  const [blockReason, setBlockReason] = useState("");
+  const [blockTerm, setBlockTerm] = useState("");
 
   async function reload() {
     setLoading(true);
@@ -48,60 +61,76 @@ export function AdminUsers() {
     void reload();
   }, [query]);
 
-  async function changeRole(userId: string, role: string) {
-    setBusyId(userId);
+  function openDrawer(user: AdminUser) {
+    setDrawerUser(user);
+    setDrawerTab("profile");
+    setPendingRole(user.role);
+  }
+
+  async function applyRole() {
+    if (!drawerUser) return;
+    setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`/api/admin/users/${userId}/role`, {
+      const res = await fetch(`/api/admin/users/${drawerUser.id}/role`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role }),
+        body: JSON.stringify({ role: pendingRole }),
       });
       const json = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
         setError(json.error || "Не удалось сменить роль");
         return;
       }
+      setRoleConfirmOpen(false);
       await reload();
+      const updated = items.find((u) => u.id === drawerUser.id);
+      if (updated) setDrawerUser({ ...updated, role: pendingRole });
     } finally {
-      setBusyId(null);
+      setBusy(false);
     }
   }
 
-  async function blockUser(userId: string) {
-    setBusyId(userId);
+  async function applyBlock() {
+    if (!drawerUser) return;
+    setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`/api/admin/users/${userId}/block`, {
+      const body: { reason: string; blockedUntil?: string } = {
+        reason: blockReason.trim() || "Нарушение правил",
+      };
+      if (blockTerm) {
+        body.blockedUntil = new Date(blockTerm).toISOString();
+      }
+      const res = await fetch(`/api/admin/users/${drawerUser.id}/block`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason: blockReason }),
+        body: JSON.stringify(body),
       });
       const json = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
         setError(json.error || "Не удалось заблокировать");
         return;
       }
-      setBlockId(null);
+      setBlockOpen(false);
+      setBlockReason("");
+      setBlockTerm("");
+      setDrawerUser(null);
       await reload();
     } finally {
-      setBusyId(null);
+      setBusy(false);
     }
   }
 
-  async function unblockUser(userId: string) {
-    setBusyId(userId);
-    setError(null);
+  async function unblock(userId: string) {
+    setBusy(true);
     try {
       const res = await fetch(`/api/admin/users/${userId}/unblock`, { method: "POST" });
       const json = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) {
-        setError(json.error || "Не удалось разблокировать");
-        return;
-      }
-      await reload();
+      if (!res.ok) setError(json.error || "Не удалось разблокировать");
+      else await reload();
     } finally {
-      setBusyId(null);
+      setBusy(false);
     }
   }
 
@@ -132,12 +161,9 @@ export function AdminUsers() {
             placeholder="Email или ФИО"
           />
         </div>
-        <button
-          type="submit"
-          className="rounded-[10px] bg-brand-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-brand-800"
-        >
+        <FormButton type="submit" className="w-auto px-4 py-2.5">
           Найти
-        </button>
+        </FormButton>
       </form>
 
       {error ? (
@@ -153,7 +179,7 @@ export function AdminUsers() {
               <th className="px-4 py-3">Пользователь</th>
               <th className="px-4 py-3">Роль</th>
               <th className="px-4 py-3">Статус</th>
-              <th className="px-4 py-3">Действия</th>
+              <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody>
@@ -176,20 +202,7 @@ export function AdminUsers() {
                     <div className="font-semibold text-text-primary">{user.fullName}</div>
                     <div className="text-xs text-text-muted">{user.email}</div>
                   </td>
-                  <td className="px-4 py-3">
-                    <select
-                      className="rounded-[8px] border border-border px-2 py-1 text-sm"
-                      value={user.role}
-                      disabled={busyId === user.id}
-                      onChange={(e) => void changeRole(user.id, e.target.value)}
-                    >
-                      {ROLES.map((role) => (
-                        <option key={role} value={role}>
-                          {roleLabel(role)}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
+                  <td className="px-4 py-3">{roleLabel(user.role)}</td>
                   <td className="px-4 py-3">
                     <span
                       className={cn(
@@ -201,54 +214,15 @@ export function AdminUsers() {
                     >
                       {userStatusLabel(user.status)}
                     </span>
-                    {user.blockedReason ? (
-                      <div className="mt-1 text-xs text-text-muted">{user.blockedReason}</div>
-                    ) : null}
                   </td>
-                  <td className="px-4 py-3">
-                    {user.status === "blocked" ? (
-                      <button
-                        type="button"
-                        disabled={busyId === user.id}
-                        onClick={() => void unblockUser(user.id)}
-                        className="text-sm font-semibold text-brand-700 hover:text-brand-900"
-                      >
-                        Разблокировать
-                      </button>
-                    ) : blockId === user.id ? (
-                      <div className="space-y-2">
-                        <input
-                          className="w-full max-w-xs rounded-[8px] border border-border px-2 py-1 text-sm"
-                          value={blockReason}
-                          onChange={(e) => setBlockReason(e.target.value)}
-                        />
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            className="text-sm font-semibold text-red-600"
-                            onClick={() => void blockUser(user.id)}
-                          >
-                            Подтвердить
-                          </button>
-                          <button
-                            type="button"
-                            className="text-sm text-text-muted"
-                            onClick={() => setBlockId(null)}
-                          >
-                            Отмена
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled={busyId === user.id}
-                        onClick={() => setBlockId(user.id)}
-                        className="text-sm font-semibold text-red-600 hover:text-red-800"
-                      >
-                        Заблокировать
-                      </button>
-                    )}
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      type="button"
+                      onClick={() => openDrawer(user)}
+                      className="text-sm font-bold text-brand-700 hover:text-brand-900"
+                    >
+                      Карточка
+                    </button>
                   </td>
                 </tr>
               ))
@@ -256,6 +230,187 @@ export function AdminUsers() {
           </tbody>
         </table>
       </div>
+
+      <Drawer
+        open={drawerUser !== null}
+        onClose={() => setDrawerUser(null)}
+        title="Карточка пользователя"
+        widthClassName="max-w-md"
+      >
+        {drawerUser ? (
+          <div className="space-y-4">
+            <div className="flex gap-2 border-b border-border pb-2">
+              {(
+                [
+                  ["profile", "Профиль"],
+                  ["role", "Роль и доступ"],
+                  ["history", "История"],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setDrawerTab(key)}
+                  className={cn(
+                    "rounded-[8px] px-3 py-1.5 text-sm font-bold",
+                    drawerTab === key
+                      ? "bg-brand-700 text-white"
+                      : "text-text-secondary hover:bg-[#f8fafc]",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {drawerTab === "profile" ? (
+              <dl className="space-y-2 text-sm">
+                <div>
+                  <dt className="text-text-muted">ФИО</dt>
+                  <dd className="font-semibold text-text-primary">{drawerUser.fullName}</dd>
+                </div>
+                <div>
+                  <dt className="text-text-muted">Email</dt>
+                  <dd className="font-semibold">{drawerUser.email}</dd>
+                </div>
+                <div>
+                  <dt className="text-text-muted">Телефон</dt>
+                  <dd>{drawerUser.phone || "—"}</dd>
+                </div>
+                <div>
+                  <dt className="text-text-muted">Статус</dt>
+                  <dd>{userStatusLabel(drawerUser.status)}</dd>
+                </div>
+                {drawerUser.blockedReason ? (
+                  <div>
+                    <dt className="text-text-muted">Причина блокировки</dt>
+                    <dd>{drawerUser.blockedReason}</dd>
+                  </div>
+                ) : null}
+                <div className="flex flex-wrap gap-2 pt-2">
+                  {drawerUser.status === "blocked" ? (
+                    <FormButton
+                      type="button"
+                      className="w-auto px-4 py-2"
+                      disabled={busy}
+                      onClick={() => void unblock(drawerUser.id)}
+                    >
+                      Разблокировать
+                    </FormButton>
+                  ) : (
+                    <FormButton
+                      type="button"
+                      variant="destructive"
+                      className="w-auto px-4 py-2"
+                      onClick={() => setBlockOpen(true)}
+                    >
+                      Блокировать доступ
+                    </FormButton>
+                  )}
+                </div>
+              </dl>
+            ) : null}
+
+            {drawerTab === "role" ? (
+              <div className="space-y-3 text-sm">
+                <label className="block space-y-1.5">
+                  <span className="font-semibold text-text-secondary">Роль</span>
+                  <select
+                    className="w-full rounded-[10px] border border-border px-3 py-2"
+                    value={pendingRole}
+                    onChange={(e) => setPendingRole(e.target.value)}
+                  >
+                    {ROLES.map((role) => (
+                      <option key={role} value={role}>
+                        {roleLabel(role)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <FormButton
+                  type="button"
+                  className="w-auto px-4 py-2"
+                  disabled={pendingRole === drawerUser.role}
+                  onClick={() => setRoleConfirmOpen(true)}
+                >
+                  Сменить роль
+                </FormButton>
+              </div>
+            ) : null}
+
+            {drawerTab === "history" ? (
+              <ul className="space-y-2 text-sm text-text-secondary">
+                <li className="rounded-[10px] bg-[#f8fafc] px-3 py-2">
+                  Создан:{" "}
+                  {new Date(drawerUser.createdAt).toLocaleString("ru-RU")}
+                </li>
+                <li className="rounded-[10px] bg-[#f8fafc] px-3 py-2">
+                  Журнал действий: данные появятся после подключения audit API.
+                </li>
+              </ul>
+            ) : null}
+          </div>
+        ) : null}
+      </Drawer>
+
+      <ConfirmDialog
+        open={roleConfirmOpen}
+        onClose={() => setRoleConfirmOpen(false)}
+        title="Подтверждение смены роли"
+        confirmLabel="Подтвердить"
+        busy={busy}
+        onConfirm={() => void applyRole()}
+      >
+        Пользователь получит роль «{roleLabel(pendingRole)}». Продолжить?
+      </ConfirmDialog>
+
+      <Modal
+        open={blockOpen}
+        onClose={() => setBlockOpen(false)}
+        title="Блокировка доступа пользователя"
+        footer={
+          <>
+            <FormButton
+              type="button"
+              variant="secondary"
+              className="w-auto px-4 py-2.5"
+              onClick={() => setBlockOpen(false)}
+              disabled={busy}
+            >
+              Отмена
+            </FormButton>
+            <FormButton
+              type="button"
+              variant="destructive"
+              className="w-auto px-4 py-2.5"
+              disabled={busy || !blockReason.trim()}
+              onClick={() => void applyBlock()}
+            >
+              Заблокировать
+            </FormButton>
+          </>
+        }
+      >
+        <div className="space-y-4 text-sm">
+          <label className="block space-y-1.5">
+            <span className="font-semibold text-text-secondary">Причина</span>
+            <textarea
+              rows={3}
+              value={blockReason}
+              onChange={(e) => setBlockReason(e.target.value)}
+              className="w-full rounded-[10px] border border-border px-3 py-2"
+              placeholder="Опишите основание блокировки"
+            />
+          </label>
+          <Input
+            label="Срок (до даты)"
+            name="blockTerm"
+            type="date"
+            value={blockTerm}
+            onChange={(e) => setBlockTerm(e.target.value)}
+          />
+        </div>
+      </Modal>
     </div>
   );
 }

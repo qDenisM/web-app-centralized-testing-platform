@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { Institution, Specialty } from "@/lib/admin";
 import { Input } from "@/components/ui/Input";
 import { FormButton } from "@/components/ui/FormButton";
+import { Modal } from "@/components/ui/Modal";
 
 const defaultForm = {
   institutionId: "",
@@ -26,6 +27,9 @@ export function AdminSpecialties() {
   const [scoreSpecialtyId, setScoreSpecialtyId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [specModalOpen, setSpecModalOpen] = useState(false);
+  const [editingSpec, setEditingSpec] = useState<Specialty | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const loadInstitutions = useCallback(async () => {
     const res = await fetch("/api/admin/institutions");
@@ -73,20 +77,52 @@ export function AdminSpecialties() {
     void loadSpecialties();
   }, [loadSpecialties]);
 
-  async function createSpecialty(e: React.FormEvent) {
-    e.preventDefault();
-    const res = await fetch("/api/admin/specialties", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+  function openCreateSpec() {
+    setEditingSpec(null);
+    setForm((f) => ({ ...defaultForm, institutionId: f.institutionId }));
+    setSpecModalOpen(true);
+  }
+
+  function openEditSpec(item: Specialty) {
+    setEditingSpec(item);
+    setForm({
+      institutionId: item.institutionId,
+      okrbCode: item.okrbCode,
+      name: item.name,
+      studyForm: item.studyForm,
+      funding: item.funding,
+      placesPlan: item.placesPlan,
+      contentMode: item.contentMode,
+      isPublished: item.isPublished,
     });
+    setSpecModalOpen(true);
+  }
+
+  async function saveSpecialty() {
+    setBusy(true);
+    try {
+    const res = editingSpec
+      ? await fetch(`/api/admin/specialties/${editingSpec.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        })
+      : await fetch("/api/admin/specialties", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        });
     const json = (await res.json().catch(() => ({}))) as { error?: string };
     if (!res.ok) {
-      setError(json.error || "Не удалось создать специальность");
+      setError(json.error || "Не удалось сохранить специальность");
       return;
     }
+    setSpecModalOpen(false);
     setForm((f) => ({ ...defaultForm, institutionId: f.institutionId }));
     await loadSpecialties();
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function addPassingScore(e: React.FormEvent) {
@@ -155,7 +191,7 @@ export function AdminSpecialties() {
         </p>
       ) : null}
 
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <label className="block space-y-1.5 text-sm">
           <span className="font-semibold text-text-secondary">Вуз</span>
           <select
@@ -170,47 +206,71 @@ export function AdminSpecialties() {
             ))}
           </select>
         </label>
+        <FormButton type="button" className="w-auto px-4 py-2.5" onClick={openCreateSpec}>
+          + Специальность
+        </FormButton>
       </div>
 
-      <form
-        onSubmit={(e) => void createSpecialty(e)}
-        className="grid gap-3 rounded-[14px] border border-border bg-white p-5 sm:grid-cols-2"
+      <Modal
+        open={specModalOpen}
+        onClose={() => setSpecModalOpen(false)}
+        title="Параметры специальности"
+        footer={
+          <>
+            <FormButton
+              type="button"
+              variant="secondary"
+              className="w-auto px-4 py-2.5"
+              onClick={() => setSpecModalOpen(false)}
+              disabled={busy}
+            >
+              Отмена
+            </FormButton>
+            <FormButton
+              type="button"
+              className="w-auto px-4 py-2.5"
+              disabled={busy}
+              onClick={() => void saveSpecialty()}
+            >
+              Сохранить
+            </FormButton>
+          </>
+        }
       >
-        <Input
-          label="Код ОКРБ"
-          name="okrbCode"
-          value={form.okrbCode}
-          onChange={(e) => setForm((f) => ({ ...f, okrbCode: e.target.value }))}
-          required
-        />
-        <Input
-          label="Название"
-          name="name"
-          value={form.name}
-          onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-          required
-        />
-        <Input
-          label="Места"
-          name="placesPlan"
-          type="number"
-          value={form.placesPlan}
-          onChange={(e) =>
-            setForm((f) => ({ ...f, placesPlan: Number(e.target.value) || 0 }))
-          }
-        />
-        <label className="flex items-center gap-2 text-sm font-semibold text-text-secondary">
-          <input
-            type="checkbox"
-            checked={form.isPublished}
-            onChange={(e) => setForm((f) => ({ ...f, isPublished: e.target.checked }))}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Input
+            label="Код ОКРБ"
+            name="okrbCode"
+            value={form.okrbCode}
+            onChange={(e) => setForm((f) => ({ ...f, okrbCode: e.target.value }))}
+            required
           />
-          Опубликована
-        </label>
-        <FormButton type="submit" className="sm:col-span-2 sm:w-auto">
-          Добавить специальность
-        </FormButton>
-      </form>
+          <Input
+            label="Название"
+            name="name"
+            value={form.name}
+            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+            required
+          />
+          <Input
+            label="Места"
+            name="placesPlan"
+            type="number"
+            value={form.placesPlan}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, placesPlan: Number(e.target.value) || 0 }))
+            }
+          />
+          <label className="flex items-center gap-2 text-sm font-semibold text-text-secondary sm:col-span-2">
+            <input
+              type="checkbox"
+              checked={form.isPublished}
+              onChange={(e) => setForm((f) => ({ ...f, isPublished: e.target.checked }))}
+            />
+            Опубликована
+          </label>
+        </div>
+      </Modal>
 
       <form
         onSubmit={(e) => void addPassingScore(e)}
@@ -255,6 +315,7 @@ export function AdminSpecialties() {
         items={items}
         onToggle={togglePublished}
         onRemoveScore={removeScore}
+        onEdit={openEditSpec}
       />
     </div>
   );
@@ -265,11 +326,13 @@ function SpecialtyTable({
   items,
   onToggle,
   onRemoveScore,
+  onEdit,
 }: {
   loading: boolean;
   items: Specialty[];
   onToggle: (item: Specialty) => Promise<void>;
   onRemoveScore: (specialtyId: string, scoreId: string) => Promise<void>;
+  onEdit: (item: Specialty) => void;
 }) {
   return (
     <div className="space-y-4">
@@ -290,13 +353,22 @@ function SpecialtyTable({
                   {item.okrbCode} · мест: {item.placesPlan}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => void onToggle(item)}
-                className="text-sm font-semibold text-brand-700"
-              >
-                {item.isPublished ? "Опубликована" : "Скрыта"}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => onEdit(item)}
+                  className="text-sm font-semibold text-brand-700"
+                >
+                  Изменить
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void onToggle(item)}
+                  className="text-sm font-semibold text-text-secondary"
+                >
+                  {item.isPublished ? "Опубликована" : "Скрыта"}
+                </button>
+              </div>
             </div>
             <div className="mt-3">
               <p className="text-xs font-bold uppercase text-text-muted">Проходные баллы</p>

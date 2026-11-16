@@ -4,13 +4,19 @@ import { useCallback, useEffect, useState } from "react";
 import type { Subject } from "@/lib/admin";
 import { Input } from "@/components/ui/Input";
 import { FormButton } from "@/components/ui/FormButton";
+import { Modal } from "@/components/ui/Modal";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 export function AdminSubjects() {
   const [items, setItems] = useState<Subject[]>([]);
-  const [name, setName] = useState("");
-  const [shortCode, setShortCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<Subject | null>(null);
+  const [name, setName] = useState("");
+  const [shortCode, setShortCode] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<Subject | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -34,41 +40,75 @@ export function AdminSubjects() {
     void load();
   }, [load]);
 
-  async function createSubject(e: React.FormEvent) {
-    e.preventDefault();
-    const res = await fetch("/api/admin/subjects", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, shortCode, status: "active" }),
-    });
-    const json = (await res.json().catch(() => ({}))) as { error?: string };
-    if (!res.ok) {
-      setError(json.error || "Не удалось создать предмет");
-      return;
-    }
+  function openCreate() {
+    setEditing(null);
     setName("");
     setShortCode("");
-    await load();
+    setModalOpen(true);
   }
 
-  async function remove(item: Subject) {
-    if (!window.confirm(`Удалить «${item.name}»?`)) return;
-    const res = await fetch(`/api/admin/subjects/${item.id}`, { method: "DELETE" });
-    if (!res.ok) {
+  function openEdit(item: Subject) {
+    setEditing(item);
+    setName(item.name);
+    setShortCode(item.shortCode);
+    setModalOpen(true);
+  }
+
+  async function saveSubject() {
+    setBusy(true);
+    try {
+      const res = editing
+        ? await fetch(`/api/admin/subjects/${editing.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, shortCode, status: editing.status }),
+          })
+        : await fetch("/api/admin/subjects", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, shortCode, status: "active" }),
+          });
       const json = (await res.json().catch(() => ({}))) as { error?: string };
-      setError(json.error || "Не удалось удалить");
-      return;
+      if (!res.ok) {
+        setError(json.error || "Не удалось сохранить");
+        return;
+      }
+      setModalOpen(false);
+      await load();
+    } finally {
+      setBusy(false);
     }
-    await load();
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/admin/subjects/${deleteTarget.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const json = (await res.json().catch(() => ({}))) as { error?: string };
+        setError(json.error || "Не удалось удалить");
+        return;
+      }
+      setDeleteTarget(null);
+      await load();
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-extrabold tracking-tight text-brand-900">
-          Предметы ЦТ
-        </h1>
-        <p className="mt-1 text-sm text-text-secondary">Справочник предметов ЦТ.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-extrabold tracking-tight text-brand-900">
+            Предметы ЦТ
+          </h1>
+          <p className="mt-1 text-sm text-text-secondary">Справочник предметов ЦТ.</p>
+        </div>
+        <FormButton type="button" className="w-auto px-4 py-2.5" onClick={openCreate}>
+          + Предмет
+        </FormButton>
       </div>
 
       {error ? (
@@ -77,30 +117,68 @@ export function AdminSubjects() {
         </p>
       ) : null}
 
-      <form
-        onSubmit={(e) => void createSubject(e)}
-        className="grid gap-3 rounded-[14px] border border-border bg-white p-5 sm:grid-cols-2"
-      >
-        <Input
-          label="Название"
-          name="name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-        />
-        <Input
-          label="Код"
-          name="shortCode"
-          value={shortCode}
-          onChange={(e) => setShortCode(e.target.value)}
-          required
-        />
-        <FormButton type="submit" className="sm:col-span-2 sm:w-auto">
-          Добавить предмет
-        </FormButton>
-      </form>
+      <SubjectTable
+        loading={loading}
+        items={items}
+        onEdit={openEdit}
+        onRemove={setDeleteTarget}
+      />
 
-      <SubjectTable loading={loading} items={items} onRemove={remove} />
+      <Modal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title="Предмет ЦТ"
+        footer={
+          <>
+            <FormButton
+              type="button"
+              variant="secondary"
+              className="w-auto px-4 py-2.5"
+              onClick={() => setModalOpen(false)}
+              disabled={busy}
+            >
+              Отмена
+            </FormButton>
+            <FormButton
+              type="button"
+              className="w-auto px-4 py-2.5"
+              disabled={busy}
+              onClick={() => void saveSubject()}
+            >
+              Сохранить
+            </FormButton>
+          </>
+        }
+      >
+        <div className="grid gap-3">
+          <Input
+            label="Название"
+            name="name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+          />
+          <Input
+            label="Код"
+            name="shortCode"
+            value={shortCode}
+            onChange={(e) => setShortCode(e.target.value)}
+            required
+          />
+        </div>
+      </Modal>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        title="Удаление предмета"
+        confirmLabel="Удалить"
+        variant="destructive"
+        busy={busy}
+        onConfirm={() => void confirmDelete()}
+      >
+        Удалить предмет «{deleteTarget?.name}»?
+      </ConfirmDialog>
     </div>
   );
 }
@@ -108,11 +186,13 @@ export function AdminSubjects() {
 function SubjectTable({
   loading,
   items,
+  onEdit,
   onRemove,
 }: {
   loading: boolean;
   items: Subject[];
-  onRemove: (item: Subject) => Promise<void>;
+  onEdit: (item: Subject) => void;
+  onRemove: (item: Subject) => void;
 }) {
   return (
     <div className="overflow-x-auto rounded-[14px] border border-border bg-white">
@@ -141,7 +221,14 @@ function SubjectTable({
                 <td className="px-4 py-3 text-right">
                   <button
                     type="button"
-                    onClick={() => void onRemove(item)}
+                    onClick={() => onEdit(item)}
+                    className="mr-3 text-sm font-semibold text-brand-700"
+                  >
+                    Изменить
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onRemove(item)}
                     className="text-sm font-semibold text-red-600"
                   >
                     Удалить
