@@ -1,6 +1,8 @@
 import {
+  EVENT_APPLICATION_APPROVED,
   EVENT_RESULT_PUBLISHED,
   EVENT_VERIFICATION_DECIDED,
+  type ApplicationApprovedEvent,
   type ResultPublishedEvent,
   type VerificationDecidedEvent,
 } from "@abiturent/contracts";
@@ -43,6 +45,18 @@ function isVerificationDecided(payload: unknown): payload is VerificationDecided
   );
 }
 
+function isApplicationApproved(
+  payload: unknown,
+): payload is ApplicationApprovedEvent {
+  if (!payload || typeof payload !== "object") return false;
+  const row = payload as Partial<ApplicationApprovedEvent>;
+  return (
+    row.type === EVENT_APPLICATION_APPROVED &&
+    typeof row.userId === "string" &&
+    typeof row.applicationId === "string"
+  );
+}
+
 function isResultPublished(payload: unknown): payload is ResultPublishedEvent {
   if (!payload || typeof payload !== "object") return false;
   const row = payload as Partial<ResultPublishedEvent>;
@@ -69,6 +83,26 @@ export async function startNotificationConsumers(
           channel: "in_app",
           title: text.title,
           body: text.body,
+        },
+      });
+    },
+  });
+
+  await consumeEvents(client, {
+    queue: "notification.application.approved",
+    routingKey: EVENT_APPLICATION_APPROVED,
+    onMessage: async (payload) => {
+      if (!isApplicationApproved(payload)) return;
+
+      const passLine = payload.passNumber
+        ? ` Номер пропуска: ${payload.passNumber}.`
+        : "";
+      await prisma.notification.create({
+        data: {
+          userId: payload.userId,
+          channel: "in_app",
+          title: "Допуск на ЦТ подтверждён",
+          body: `Модератор одобрил запись на экзамен.${passLine} Скачайте пропуск во вкладке «Расписание».`,
         },
       });
     },

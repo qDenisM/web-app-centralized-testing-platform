@@ -63,6 +63,10 @@ export function AdminDashboard() {
 
       {loading ? (
         <p className="text-sm text-text-muted">Загрузка…</p>
+      ) : !data && !error ? (
+        <p className="rounded-[14px] border border-border bg-white p-6 text-sm text-text-muted">
+          Нет данных для отображения.
+        </p>
       ) : data ? (
         <>
           <section className="rounded-[14px] border border-border bg-white p-6">

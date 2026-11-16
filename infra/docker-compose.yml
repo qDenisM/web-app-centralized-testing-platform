@@ -1,5 +1,9 @@
 name: abiturent
 
+# Infra-only compose: Postgres, Redis, RabbitMQ, MinIO, ClickHouse, Traefik.
+# Node microservices run on the host — `npm run dev:services` (ports 3001–3008).
+# App images in Docker are optional later (see apps/*/Dockerfile where present).
+
 networks:
   abiturent:
     name: abiturent

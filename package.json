@@ -7,8 +7,10 @@
   ],
   "scripts": {
     "build:packages": "npm run build -w @abiturent/contracts && npm run build -w @abiturent/auth && npm run build -w @abiturent/service-kit",
-    "typecheck": "npm run typecheck -w @abiturent/contracts && npm run typecheck -w @abiturent/auth && npm run typecheck -w @abiturent/service-kit && npm run typecheck -w @abiturent/identity-service && npm run typecheck -w web",
+    "typecheck": "npm run typecheck -w @abiturent/contracts && npm run typecheck -w @abiturent/auth && npm run typecheck -w @abiturent/service-kit && npm run typecheck -w @abiturent/identity-service && npm run typecheck -w @abiturent/applicant-service && npm run typecheck -w @abiturent/exam-service && npm run typecheck -w @abiturent/results-service && npm run typecheck -w @abiturent/notification-service && npm run typecheck -w @abiturent/analytics-service && npm run typecheck -w web",
     "dev:identity": "npm run dev -w @abiturent/identity-service",
+    "dev:services": "bash scripts/dev-services.sh",
+    "dev:stack": "npm run infra:up && npm run dev:services",
     "dev:web": "npm run dev -w web",
     "build:web": "npm run build -w web",
     "infra:up": "docker compose -f infra/docker-compose.yml up -d",

@@ -1,16 +1,36 @@
+import {
+  closeRabbit,
+  connectRabbit,
+  type RabbitClient,
+} from "@abiturent/service-kit";
 import { buildApp } from "./app.js";
 import { config } from "./config.js";
 import { prisma } from "./db.js";
+import { setRabbitClient } from "./notify.js";
 
 const { app, logger } = buildApp();
+let rabbit: RabbitClient | null = null;
 
 const server = app.listen(config.port, () => {
   logger.info({ port: config.port }, "exam-service listening");
+
+  void connectRabbit(config.rabbitmqUrl)
+    .then((client) => {
+      rabbit = client;
+      setRabbitClient(client);
+      logger.info("rabbitmq connected");
+    })
+    .catch((err: unknown) => {
+      logger.error({ err }, "rabbitmq connect failed");
+    });
 });
 
 async function shutdown(signal: string) {
   logger.info({ signal }, "shutting down");
   server.close();
+  setRabbitClient(null);
+  await closeRabbit(rabbit);
+  rabbit = null;
   await prisma.$disconnect();
   process.exit(0);
 }

@@ -5,6 +5,7 @@ import { requireModerator } from "../auth.js";
 import { prisma } from "../db.js";
 import { issuePassPdf } from "../pass-pdf.js";
 import { nextPassNumber, releaseSeatAndMaybePromote } from "../seats.js";
+import { publishApplicationApproved } from "../notify.js";
 import { applicationJson } from "../serializers.js";
 
 export const moderatorRoutes = Router();
@@ -123,7 +124,15 @@ moderatorRoutes.post(
           where: { id: updated.id },
           include: { exam: { include: examInclude } },
         });
-        if (withPass) approved.push(applicationJson(withPass));
+        if (withPass) {
+          approved.push(applicationJson(withPass));
+          await publishApplicationApproved({
+            userId: withPass.userId,
+            applicationId: withPass.id,
+            examId: withPass.examId,
+            passNumber: withPass.passNumber,
+          });
+        }
       }
 
       res.status(200).json({ items: approved, count: approved.length });
@@ -210,6 +219,12 @@ moderatorRoutes.post(
           include: { exam: { include: examInclude } },
         });
         if (withPass) {
+          await publishApplicationApproved({
+            userId: withPass.userId,
+            applicationId: withPass.id,
+            examId: withPass.examId,
+            passNumber: withPass.passNumber,
+          });
           res.status(200).json({
             application: applicationJson(withPass),
             promoted: null,

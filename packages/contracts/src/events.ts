@@ -1,6 +1,7 @@
 export const RABBIT_EXCHANGE = "abiturent.events";
 
 export const EVENT_VERIFICATION_DECIDED = "verification.decided";
+export const EVENT_APPLICATION_APPROVED = "application.approved";
 export const EVENT_RESULT_PUBLISHED = "result.published";
 
 export type VerificationDecidedEvent = {
@@ -9,6 +10,15 @@ export type VerificationDecidedEvent = {
   verificationId: string;
   decision: "approved" | "returned" | "rejected";
   reason: string | null;
+  at: string;
+};
+
+export type ApplicationApprovedEvent = {
+  type: typeof EVENT_APPLICATION_APPROVED;
+  userId: string;
+  applicationId: string;
+  examId: string;
+  passNumber: string | null;
   at: string;
 };
 

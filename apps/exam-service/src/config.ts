@@ -30,6 +30,9 @@ const EnvSchema = z.object({
     .default("true")
     .transform((v) => v !== "false"),
   DOWNLOAD_URL_TTL_SEC: z.coerce.number().int().positive().default(600),
+  RABBITMQ_URL: z
+    .string()
+    .default("amqp://abiturent:abiturent@localhost:5672"),
 });
 
 const parsed = EnvSchema.parse(process.env);
@@ -53,4 +56,5 @@ export const config = {
     forcePathStyle: parsed.MINIO_FORCE_PATH_STYLE,
   },
   downloadUrlTtlSec: parsed.DOWNLOAD_URL_TTL_SEC,
+  rabbitmqUrl: parsed.RABBITMQ_URL,
 };

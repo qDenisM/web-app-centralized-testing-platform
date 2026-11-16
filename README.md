@@ -106,4 +106,20 @@ cd apps/web
 npm run build
 ```
 
-Остальные сервисы в `apps/` пока stubs и в Compose не поднимаются.
+## Локальный стек (этап 10)
+
+Инфраструктура в Docker, микросервисы и web — на хосте:
+
+```bash
+npm run build:packages
+npm run infra:up          # Postgres, RabbitMQ, MinIO, …
+# один раз: .env в apps/*-service по .env.example + migrate/seed где нужно
+npm run dev:services      # identity … notification (3001–3007)
+npm run dev:web           # в другом терминале
+```
+
+`npm run dev:stack` поднимает Compose и сразу запускает все backend-сервисы (web отдельно).
+
+События RabbitMQ (exchange `abiturent.events`): `verification.decided`, `application.approved`, `result.published` → in-app уведомления в notification-service.
+
+Analytics — заглушка: `GET /health` и `GET /analytics/health/clickhouse` на порту 3008 (`npm run dev -w @abiturent/analytics-service`).

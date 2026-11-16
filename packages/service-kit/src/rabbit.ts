@@ -18,6 +18,7 @@ export async function connectRabbit(url: string): Promise<RabbitClient> {
   return { connection, channel, exchange: RABBIT_EXCHANGE };
 }
 
+/** Direct publish to RabbitMQ (no outbox / at-least-once retry on the producer side). */
 export async function publishEvent(
   client: RabbitClient,
   routingKey: string,
