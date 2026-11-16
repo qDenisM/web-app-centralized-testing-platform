@@ -9,13 +9,29 @@ import {
   type ApplicantProfile,
 } from "@/lib/applicant";
 
+type MeUser = {
+  id: string;
+  email: string;
+  fullName: string;
+  phone: string | null;
+};
+
 export function ProfileForm() {
+  const [me, setMe] = useState<MeUser | null>(null);
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newPassword2, setNewPassword2] = useState("");
+
   const [birthDate, setBirthDate] = useState("");
   const [passportSeries, setPassportSeries] = useState("");
   const [passportNumber, setPassportNumber] = useState("");
   const [profile, setProfile] = useState<ApplicantProfile | null>(null);
+
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [accountBusy, setAccountBusy] = useState(false);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [ready, setReady] = useState(false);
@@ -23,28 +39,55 @@ export function ProfileForm() {
   const status = profile?.verification?.status || null;
   const canSubmit =
     status === "draft" || status === "rejected" || status === "returned";
+  const locked = status === "pending" || status === "approved";
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
       try {
-        const res = await fetch("/api/applicant/profile");
-        const data = (await res.json().catch(() => ({}))) as ApplicantProfile & {
-          error?: string;
-        };
-        if (!res.ok) {
-          if (!cancelled) setError(data.error || "Не удалось загрузить профиль");
-          return;
-        }
+        const [meRes, profileRes] = await Promise.all([
+          fetch("/api/users/me"),
+          fetch("/api/applicant/profile"),
+        ]);
+        const meJson = (await meRes.json().catch(() => null)) as
+          | (MeUser & { error?: string })
+          | null;
+        const profileJson = (await profileRes.json().catch(() => ({}))) as
+          | ApplicantProfile
+          | { error?: string };
+
         if (cancelled) return;
-        setProfile(data);
-        setBirthDate(data.birthDate || "");
-        setPassportSeries(data.passportSeries || "");
-        setPassportNumber(data.passportNumber || "");
+
+        if (meRes.ok && meJson?.id && meJson.fullName) {
+          setMe({
+            id: meJson.id,
+            email: meJson.email,
+            fullName: meJson.fullName,
+            phone: meJson.phone ?? null,
+          });
+          setFullName(meJson.fullName || "");
+          setPhone(meJson.phone || "");
+        } else if (!meRes.ok) {
+          setError(meJson?.error || "Не удалось загрузить аккаунт");
+        }
+
+        if (profileRes.ok && profileJson && !("error" in profileJson)) {
+          const data = profileJson as ApplicantProfile;
+          setProfile(data);
+          setBirthDate(data.birthDate || "");
+          setPassportSeries(data.passportSeries || "");
+          setPassportNumber(data.passportNumber || "");
+        } else if (!profileRes.ok) {
+          setError(
+            "error" in profileJson
+              ? profileJson.error || "Не удалось загрузить профиль"
+              : "Не удалось загрузить профиль",
+          );
+        }
       } catch {
         if (!cancelled) {
-          setError("Сеть недоступна. Проверьте applicant-service.");
+          setError("Сеть недоступна. Проверьте сервисы.");
         }
       } finally {
         if (!cancelled) setReady(true);
@@ -56,6 +99,58 @@ export function ProfileForm() {
       cancelled = true;
     };
   }, []);
+
+  async function onSaveAccount(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setMessage(null);
+
+    if (newPassword || newPassword2) {
+      if (newPassword !== newPassword2) {
+        setError("Пароли не совпадают");
+        return;
+      }
+      if (!currentPassword) {
+        setError("Укажите текущий пароль");
+        return;
+      }
+    }
+
+    setAccountBusy(true);
+    try {
+      const body: Record<string, string> = {
+        fullName: fullName.trim(),
+        phone: phone.trim(),
+      };
+      if (newPassword) {
+        body.currentPassword = currentPassword;
+        body.newPassword = newPassword;
+      }
+      const res = await fetch("/api/users/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = (await res.json().catch(() => ({}))) as MeUser & {
+        error?: string;
+      };
+      if (!res.ok) {
+        setError(data.error || "Не удалось сохранить учётные данные");
+        return;
+      }
+      setMe(data);
+      setFullName(data.fullName || "");
+      setPhone(data.phone || "");
+      setCurrentPassword("");
+      setNewPassword("");
+      setNewPassword2("");
+      setMessage("Учётные данные сохранены");
+    } catch {
+      setError("Сеть недоступна");
+    } finally {
+      setAccountBusy(false);
+    }
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -81,7 +176,7 @@ export function ProfileForm() {
         return;
       }
       setProfile(data);
-      setMessage("Профиль сохранён");
+      setMessage("Данные анкеты сохранены");
     } catch {
       setError("Сеть недоступна");
     } finally {
@@ -119,16 +214,22 @@ export function ProfileForm() {
   }
 
   return (
-    <div className="max-w-xl space-y-5">
+    <div className="mx-auto max-w-2xl space-y-6">
       <div>
         <h1 className="text-2xl font-extrabold tracking-tight text-brand-900">
-          Анкета абитуриента
+          Профиль и настройки
         </h1>
         <p className="mt-1 text-sm text-text-secondary">
-          Паспортные данные для приёмной кампании. Статус:{" "}
-          <span className="font-semibold text-brand-800">
-            {verificationStatusLabel(status)}
-          </span>
+          Учётные данные аккаунта и анкета для приёмной кампании.
+          {status ? (
+            <>
+              {" "}
+              Статус анкеты:{" "}
+              <span className="font-semibold text-brand-800">
+                {verificationStatusLabel(status)}
+              </span>
+            </>
+          ) : null}
         </p>
         {profile?.verification?.rejectReason ? (
           <p className="mt-2 rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -137,16 +238,90 @@ export function ProfileForm() {
         ) : null}
       </div>
 
-      <form onSubmit={onSubmit} className="space-y-5">
+      {error ? (
+        <p className="rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {error}
+        </p>
+      ) : null}
+      {message ? (
+        <p className="rounded-[10px] border border-brand-100 bg-brand-100/40 px-3 py-2 text-sm text-brand-900">
+          {message}
+        </p>
+      ) : null}
+
+      <form
+        onSubmit={onSaveAccount}
+        className="space-y-4 rounded-[14px] border border-border bg-white p-5 shadow-[var(--shadow-soft)]"
+      >
+        <h2 className="text-sm font-extrabold uppercase tracking-wide text-text-muted">
+          Учётные данные
+        </h2>
+        <Input
+          label="ФИО"
+          name="fullName"
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          required
+        />
+        <Input
+          label="Email"
+          name="email"
+          value={me?.email || ""}
+          disabled
+        />
+        <Input
+          label="Телефон"
+          name="phone"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          placeholder="+375..."
+        />
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Input
+            label="Текущий пароль"
+            name="currentPassword"
+            type="password"
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            autoComplete="current-password"
+          />
+          <Input
+            label="Новый пароль"
+            name="newPassword"
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            autoComplete="new-password"
+          />
+          <Input
+            label="Повтор пароля"
+            name="newPassword2"
+            type="password"
+            value={newPassword2}
+            onChange={(e) => setNewPassword2(e.target.value)}
+            autoComplete="new-password"
+          />
+        </div>
+        <FormButton disabled={accountBusy} className="w-auto px-5 py-2.5">
+          {accountBusy ? "Сохраняем…" : "Сохранить учётные данные"}
+        </FormButton>
+      </form>
+
+      <form
+        onSubmit={onSubmit}
+        className="space-y-4 rounded-[14px] border border-border bg-white p-5 shadow-[var(--shadow-soft)]"
+      >
+        <h2 className="text-sm font-extrabold uppercase tracking-wide text-text-muted">
+          Данные анкеты
+        </h2>
         <Input
           label="Дата рождения"
           name="birthDate"
           type="date"
           value={birthDate}
           onChange={(e) => setBirthDate(e.target.value)}
-          disabled={status === "pending" || status === "approved"}
+          disabled={locked}
         />
-
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-[120px_minmax(0,1fr)]">
           <Input
             label="Серия"
@@ -155,7 +330,7 @@ export function ProfileForm() {
             onChange={(e) => setPassportSeries(e.target.value.toUpperCase())}
             placeholder="MP"
             maxLength={10}
-            disabled={status === "pending" || status === "approved"}
+            disabled={locked}
           />
           <Input
             label="Номер паспорта"
@@ -164,7 +339,7 @@ export function ProfileForm() {
             onChange={(e) => setPassportNumber(e.target.value)}
             placeholder="1234567"
             maxLength={20}
-            disabled={status === "pending" || status === "approved"}
+            disabled={locked}
           />
         </div>
 
@@ -178,37 +353,23 @@ export function ProfileForm() {
                 : ""}
             </span>
           ) : (
-            <span>
-              ещё не загружен —{" "}
-              <Link
-                href="/app/certificate"
-                className="font-bold text-brand-700 hover:underline"
-              >
-                перейти к аттестату
-              </Link>
-            </span>
+            <span>ещё не загружен</span>
           )}
+          {" · "}
+          <Link
+            href="/app/certificate"
+            className="font-bold text-brand-700 hover:underline"
+          >
+            открыть аттестат
+          </Link>
         </div>
 
-        {error ? (
-          <p className="rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {error}
-          </p>
-        ) : null}
-
-        {message ? (
-          <p className="rounded-[10px] border border-brand-100 bg-brand-100/40 px-3 py-2 text-sm text-brand-900">
-            {message}
-          </p>
-        ) : null}
-
         <div className="flex flex-wrap gap-3">
-          {status !== "pending" && status !== "approved" ? (
+          {!locked ? (
             <FormButton disabled={loading} className="w-auto px-5 py-2.5">
-              {loading ? "Сохраняем…" : "Сохранить"}
+              {loading ? "Сохраняем…" : "Сохранить анкету"}
             </FormButton>
           ) : null}
-
           {canSubmit ? (
             <FormButton
               type="button"

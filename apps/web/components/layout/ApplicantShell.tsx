@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { CompetitiveScoreBadge } from "@/components/layout/CompetitiveScoreBadge";
 import { RoleShell } from "@/components/layout/RoleShell";
 
 const navItems = [
@@ -12,26 +13,26 @@ const navItems = [
 
 type ApplicantShellProps = {
   children: ReactNode;
-  competitiveScore?: number | null;
 };
 
-export function ApplicantShell({
-  children,
-  competitiveScore = null,
-}: ApplicantShellProps) {
-  const scoreLabel =
-    competitiveScore == null ? "—" : String(Math.round(competitiveScore));
-
+export function ApplicantShell({ children }: ApplicantShellProps) {
   return (
     <RoleShell
       navItems={navItems}
       roleName="Абитуриент"
-      userShortName="Абитуриент"
-      headerBadge={
-        <span className="hidden rounded-full bg-brand-100 px-3 py-1 text-xs font-semibold text-brand-900 sm:inline">
-          Конкурсный балл: {scoreLabel} / 400
-        </span>
-      }
+      headerBadge={<CompetitiveScoreBadge />}
+      profileLinks={[
+        {
+          href: "/app/profile",
+          label: "Профиль и аттестат",
+          icon: "profile",
+        },
+        {
+          href: "/app/favorites",
+          label: "Избранные специальности",
+          icon: "favorites",
+        },
+      ]}
       footer={{
         roleLabel: "Абитуриенту",
         roleLinks: [
@@ -39,6 +40,7 @@ export function ApplicantShell({
           { href: "/app/ct", label: "Мои ЦТ" },
           { href: "/app/certificate", label: "Аттестат" },
           { href: "/app/universities", label: "Университеты" },
+          { href: "/app/profile", label: "Профиль" },
           { href: "/app/notifications", label: "Уведомления" },
         ],
         ctaTitle: "Шансы",

@@ -19,7 +19,7 @@ export function ModeratorShell({ children }: ModeratorShellProps) {
     <RoleShell
       navItems={navItems}
       roleName="Модератор"
-      userShortName="Модератор"
+      profileLinks={[{ href: "/moderator", label: "Обзор очереди", icon: "profile" }]}
       headerBadge={
         <span className="hidden rounded-full bg-brand-100 px-3 py-1 text-xs font-semibold text-brand-900 sm:inline">
           Кампания: 2026 · Online

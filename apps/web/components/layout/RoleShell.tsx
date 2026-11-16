@@ -4,9 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { Logo } from "@/components/layout/Logo";
-import { LogoutButton } from "@/components/auth/LogoutButton";
 import { NotificationsBell } from "@/components/notifications/NotificationsBell";
 import { CabinetFooter } from "@/components/layout/CabinetFooter";
+import {
+  ProfileMenu,
+  type ProfileMenuLink,
+} from "@/components/layout/ProfileMenu";
 import { cn } from "@/lib/utils";
 
 export type RoleNavItem = {
@@ -19,9 +22,9 @@ type RoleShellProps = {
   children: ReactNode;
   navItems: RoleNavItem[];
   roleName: string;
-  userShortName?: string;
   headerBadge?: ReactNode;
   sidebarFooter?: ReactNode;
+  profileLinks?: ProfileMenuLink[];
   footer: {
     roleLabel: string;
     roleLinks: Array<{ href: string; label: string }>;
@@ -42,19 +45,13 @@ export function RoleShell({
   children,
   navItems,
   roleName,
-  userShortName = "Пользователь",
   headerBadge,
   sidebarFooter,
+  profileLinks = [],
   footer,
   showMobileNav = true,
 }: RoleShellProps) {
   const pathname = usePathname();
-  const initials = userShortName
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? "")
-    .join("") || "П";
 
   return (
     <div className="flex min-h-full bg-bg-page">
@@ -97,18 +94,7 @@ export function RoleShell({
             <div className="ml-auto flex items-center gap-2 sm:gap-3">
               {headerBadge}
               <NotificationsBell />
-              <div className="hidden items-center gap-2 sm:flex">
-                <div className="text-right">
-                  <div className="text-sm font-semibold text-text-primary">
-                    {userShortName}
-                  </div>
-                  <div className="text-xs text-text-muted">{roleName}</div>
-                </div>
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-100 text-xs font-extrabold text-brand-900">
-                  {initials}
-                </div>
-              </div>
-              <LogoutButton />
+              <ProfileMenu roleName={roleName} links={profileLinks} />
             </div>
           </div>
           {showMobileNav ? (

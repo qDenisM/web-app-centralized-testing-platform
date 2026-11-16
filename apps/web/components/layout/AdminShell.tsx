@@ -21,7 +21,7 @@ export function AdminShell({ children }: AdminShellProps) {
     <RoleShell
       navItems={navItems}
       roleName="Администратор"
-      userShortName="Администратор"
+      profileLinks={[{ href: "/admin", label: "Обзор системы", icon: "profile" }]}
       headerBadge={
         <span className="hidden rounded-full bg-brand-100 px-3 py-1 text-xs font-semibold text-brand-900 sm:inline">
           Кампания: 2026 · Online

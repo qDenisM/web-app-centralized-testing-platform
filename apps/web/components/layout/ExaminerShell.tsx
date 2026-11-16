@@ -19,7 +19,7 @@ export function ExaminerShell({ children }: ExaminerShellProps) {
     <RoleShell
       navItems={navItems}
       roleName="Экзаменатор"
-      userShortName="Экзаменатор"
+      profileLinks={[{ href: "/examiner", label: "Результаты ЦТ", icon: "profile" }]}
       headerBadge={
         <span className="hidden rounded-full bg-brand-100 px-3 py-1 text-xs font-semibold text-brand-900 sm:inline">
           Кампания: 2026 · Online

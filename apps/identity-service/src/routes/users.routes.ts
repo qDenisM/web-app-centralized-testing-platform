@@ -68,6 +68,90 @@ usersRoutes.get(
   },
 );
 
+usersRoutes.patch(
+  "/users/me",
+  authenticateLocal(),
+  async (req, res, next) => {
+    try {
+      const userId = req.user?.sub;
+      if (!userId) {
+        throw AppError.unauthorized();
+      }
+
+      const body = req.body as {
+        fullName?: unknown;
+        phone?: unknown;
+        currentPassword?: unknown;
+        newPassword?: unknown;
+      };
+
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (!user) {
+        throw AppError.notFound("User not found");
+      }
+
+      const data: {
+        fullName?: string;
+        phone?: string | null;
+        passwordHash?: string;
+      } = {};
+
+      if (typeof body.fullName === "string") {
+        const fullName = body.fullName.trim();
+        if (fullName.length < 2) {
+          throw AppError.badRequest("Укажите ФИО");
+        }
+        data.fullName = fullName;
+      }
+
+      if (body.phone === null) {
+        data.phone = null;
+      } else if (typeof body.phone === "string") {
+        const phone = body.phone.trim();
+        data.phone = phone.length ? phone : null;
+      }
+
+      const wantsPassword =
+        typeof body.newPassword === "string" && body.newPassword.length > 0;
+      if (wantsPassword) {
+        if (typeof body.currentPassword !== "string" || !body.currentPassword) {
+          throw AppError.badRequest("Нужен текущий пароль");
+        }
+        const { verifyPassword, hashPassword } = await import("../password.js");
+        const ok = await verifyPassword(user.passwordHash, body.currentPassword);
+        if (!ok) {
+          throw AppError.unauthorized("Неверный текущий пароль");
+        }
+        if (body.newPassword.length < 8) {
+          throw AppError.badRequest("Новый пароль слишком короткий");
+        }
+        data.passwordHash = await hashPassword(body.newPassword);
+      }
+
+      if (Object.keys(data).length === 0) {
+        throw AppError.badRequest("Нет данных для обновления");
+      }
+
+      const updated = await prisma.user.update({
+        where: { id: userId },
+        data,
+      });
+
+      res.status(200).json({
+        id: updated.id,
+        email: updated.email,
+        fullName: updated.fullName,
+        phone: updated.phone,
+        role: RoleSchema.parse(updated.role),
+        status: updated.status,
+        createdAt: updated.createdAt.toISOString(),
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
 usersRoutes.post(
   "/users/:id/block",
   authenticateLocal(),
