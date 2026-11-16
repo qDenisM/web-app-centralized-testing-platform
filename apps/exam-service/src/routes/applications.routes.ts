@@ -2,6 +2,7 @@ import { Router } from "express";
 import { AppError } from "@abiturent/service-kit";
 import { requireApplicant } from "../auth.js";
 import { prisma } from "../db.js";
+import { releaseSeatAndMaybePromote } from "../seats.js";
 import { applicationJson, waitlistJson } from "../serializers.js";
 
 export const applicationsRoutes = Router();
@@ -86,54 +87,7 @@ applicationsRoutes.post(
           return { application: cancelled, promoted: null };
         }
 
-        const nextWait = await tx.waitlistEntry.findFirst({
-          where: { examId: app.examId, status: "waiting" },
-          orderBy: { position: "asc" },
-        });
-
-        if (!nextWait) {
-          await tx.$executeRaw`
-            UPDATE exams
-            SET seats_taken = GREATEST(seats_taken - 1, 0)
-            WHERE id = ${app.examId}::uuid
-          `;
-          return { application: cancelled, promoted: null };
-        }
-
-        await tx.waitlistEntry.update({
-          where: { id: nextWait.id },
-          data: { status: "accepted", offerExpiresAt: null },
-        });
-
-        const existingApp = await tx.application.findUnique({
-          where: {
-            examId_userId: { examId: app.examId, userId: nextWait.userId },
-          },
-        });
-
-        let promoted;
-        if (existingApp) {
-          promoted = await tx.application.update({
-            where: { id: existingApp.id },
-            data: {
-              status: "pending",
-              rejectReason: null,
-              passNumber: null,
-              createdAt: new Date(),
-            },
-            include: { exam: { include: examInclude } },
-          });
-        } else {
-          promoted = await tx.application.create({
-            data: {
-              examId: app.examId,
-              userId: nextWait.userId,
-              status: "pending",
-            },
-            include: { exam: { include: examInclude } },
-          });
-        }
-
+        const promoted = await releaseSeatAndMaybePromote(tx, app.examId);
         return { application: cancelled, promoted };
       });
 
