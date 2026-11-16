@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   fundingLabel,
   institutionTypeLabel,
@@ -9,6 +9,13 @@ import {
   type CatalogSpecialty,
   type CatalogSubject,
 } from "@/lib/catalog";
+import {
+  chanceDotClasses,
+  chanceStatusClasses,
+  chanceStatusLabel,
+  type ChanceResult,
+  type Favorite,
+} from "@/lib/chances";
 
 type UniversitiesCatalogProps = {
   specialties: CatalogSpecialty[];
@@ -33,6 +40,154 @@ export function UniversitiesCatalog({
 }: UniversitiesCatalogProps) {
   const [filters, setFilters] = useState(emptyFilters);
   const [sort, setSort] = useState<SortMode>("score-desc");
+  const [favorites, setFavorites] = useState<Favorite[]>([]);
+  const [chances, setChances] = useState<ChanceResult[]>([]);
+  const [chancesLoading, setChancesLoading] = useState(true);
+  const [chancesError, setChancesError] = useState<string | null>(null);
+  const [busySpecialtyId, setBusySpecialtyId] = useState<string | null>(null);
+  const [calcBusy, setCalcBusy] = useState(false);
+
+  const favoriteIds = useMemo(
+    () => new Set(favorites.map((f) => f.specialtyId)),
+    [favorites],
+  );
+
+  const chanceBySpecialty = useMemo(() => {
+    const map = new Map<string, ChanceResult>();
+    for (const row of chances) {
+      map.set(row.specialtyId, row);
+    }
+    return map;
+  }, [chances]);
+
+  const loadChances = useCallback(async () => {
+    setChancesLoading(true);
+    setChancesError(null);
+    try {
+      const [favRes, chanceRes] = await Promise.all([
+        fetch("/api/favorites"),
+        fetch("/api/chances/me"),
+      ]);
+      const favJson = (await favRes.json().catch(() => [])) as
+        | Favorite[]
+        | { error?: string };
+      const chanceJson = (await chanceRes.json().catch(() => [])) as
+        | ChanceResult[]
+        | { error?: string };
+
+      if (!favRes.ok || !Array.isArray(favJson)) {
+        if (favRes.status === 401) {
+          setFavorites([]);
+          setChances([]);
+          return;
+        }
+        setChancesError(
+          !Array.isArray(favJson) && favJson.error
+            ? favJson.error
+            : "Не удалось загрузить избранное",
+        );
+        return;
+      }
+
+      if (!chanceRes.ok || !Array.isArray(chanceJson)) {
+        if (chanceRes.status === 401) {
+          setFavorites(favJson);
+          setChances([]);
+          return;
+        }
+        setChancesError(
+          !Array.isArray(chanceJson) && chanceJson.error
+            ? chanceJson.error
+            : "Не удалось загрузить шансы",
+        );
+        return;
+      }
+
+      setFavorites(favJson);
+      setChances(chanceJson);
+    } catch {
+      setChancesError("Сеть недоступна. Проверьте chances-service.");
+    } finally {
+      setChancesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadChances();
+  }, [loadChances]);
+
+  async function recalculateAll() {
+    setCalcBusy(true);
+    setChancesError(null);
+    try {
+      const res = await fetch("/api/chances/calculate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ allSpecialties: true }),
+      });
+      const json = (await res.json().catch(() => null)) as
+        | ChanceResult[]
+        | { error?: string }
+        | null;
+      if (!res.ok || !Array.isArray(json)) {
+        setChancesError(
+          json && !Array.isArray(json) && json.error
+            ? json.error
+            : "Не удалось пересчитать шансы",
+        );
+        return;
+      }
+      setChances(json);
+    } catch {
+      setChancesError("Сеть недоступна при пересчёте.");
+    } finally {
+      setCalcBusy(false);
+    }
+  }
+
+  async function toggleFavorite(specialtyId: string) {
+    setBusySpecialtyId(specialtyId);
+    setChancesError(null);
+    try {
+      const isFav = favoriteIds.has(specialtyId);
+      if (isFav) {
+        const res = await fetch(`/api/favorites/${specialtyId}`, {
+          method: "DELETE",
+        });
+        if (!res.ok) {
+          const json = (await res.json().catch(() => null)) as {
+            error?: string;
+          } | null;
+          setChancesError(json?.error || "Не удалось убрать из избранного");
+          return;
+        }
+        setFavorites((prev) => prev.filter((f) => f.specialtyId !== specialtyId));
+      } else {
+        const res = await fetch("/api/favorites", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ specialtyId }),
+        });
+        const json = (await res.json().catch(() => null)) as
+          | Favorite
+          | { error?: string }
+          | null;
+        if (!res.ok || !json || !("specialtyId" in json)) {
+          setChancesError(
+            json && "error" in json && json.error
+              ? json.error
+              : "Не удалось добавить в избранное",
+          );
+          return;
+        }
+        setFavorites((prev) => [json, ...prev]);
+      }
+    } catch {
+      setChancesError("Сеть недоступна.");
+    } finally {
+      setBusySpecialtyId(null);
+    }
+  }
 
   const cities = useMemo(() => {
     const set = new Set<string>();
@@ -106,8 +261,24 @@ export function UniversitiesCatalog({
           Каталог специальностей
         </h1>
         <p className="mt-1 text-sm text-text-secondary">
-          Подбор вузов и колледжей по фильтрам. Оценка шансов появится позже.
+          Подбор вузов и колледжей с оценкой шансов по баллам ЦТ и аттестату.
         </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void recalculateAll()}
+            disabled={calcBusy || chancesLoading}
+            className="rounded-[10px] bg-brand-700 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-800 disabled:opacity-60"
+          >
+            {calcBusy ? "Пересчёт…" : "Пересчитать шансы"}
+          </button>
+          {chancesLoading ? (
+            <span className="text-sm text-text-muted">Загрузка шансов…</span>
+          ) : null}
+          {chancesError ? (
+            <span className="text-sm text-rose-700">{chancesError}</span>
+          ) : null}
+        </div>
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[300px_minmax(0,1fr)]">
@@ -319,6 +490,8 @@ export function UniversitiesCatalog({
                   .map((s) => s.subject?.name)
                   .filter(Boolean)
                   .join(", ");
+                const chance = chanceBySpecialty.get(item.id);
+                const isFavorite = favoriteIds.has(item.id);
 
                 return (
                   <li
@@ -338,6 +511,14 @@ export function UniversitiesCatalog({
                           {institutionTypeLabel(institution.type)}
                         </p>
                       </div>
+                      {chance ? (
+                        <ChanceBadge chance={chance} />
+                      ) : (
+                        <span className="inline-flex items-center gap-2 rounded-full border border-border bg-[#f4f7f9] px-3 py-1 text-xs font-semibold text-text-muted">
+                          <span className="h-2.5 w-2.5 rounded-full bg-border" />
+                          Нет оценки
+                        </span>
+                      )}
                     </div>
 
                     <div className="mt-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
@@ -376,14 +557,27 @@ export function UniversitiesCatalog({
                       Предметы ЦТ: {subjectNames || "не указаны"}
                     </p>
 
+                    {chance?.probability != null ? (
+                      <p className="mt-3 text-sm text-text-secondary">
+                        Конкурсный балл: {chance.probability}
+                        {chance.scoreGap != null
+                          ? ` · до проходного: ${chance.scoreGap >= 0 ? "+" : ""}${chance.scoreGap}`
+                          : ""}
+                      </p>
+                    ) : null}
+
                     <div className="mt-3 flex flex-wrap gap-2">
                       <button
                         type="button"
-                        disabled
-                        className="rounded-[10px] border border-border px-3.5 py-2 text-sm font-semibold text-text-muted"
-                        title="Избранное будет на следующем этапе"
+                        disabled={busySpecialtyId === item.id}
+                        onClick={() => void toggleFavorite(item.id)}
+                        className={
+                          isFavorite
+                            ? "rounded-[10px] border border-brand-600 bg-brand-50 px-3.5 py-2 text-sm font-semibold text-brand-800"
+                            : "rounded-[10px] border border-brand-600 px-3.5 py-2 text-sm font-semibold text-brand-800 hover:bg-brand-50"
+                        }
                       >
-                        В избранное
+                        {isFavorite ? "В избранном" : "В избранное"}
                       </button>
                       <details className="rounded-[10px] border border-border">
                         <summary className="cursor-pointer list-none px-3.5 py-2 text-sm font-semibold text-brand-800">
@@ -415,5 +609,18 @@ export function UniversitiesCatalog({
         </section>
       </div>
     </div>
+  );
+}
+
+function ChanceBadge({ chance }: { chance: ChanceResult }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${chanceStatusClasses(chance.status)}`}
+    >
+      <span
+        className={`h-2.5 w-2.5 rounded-full ${chanceDotClasses(chance.status)}`}
+      />
+      {chanceStatusLabel(chance.status)}
+    </span>
   );
 }
