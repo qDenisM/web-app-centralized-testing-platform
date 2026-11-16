@@ -128,7 +128,7 @@ export function ModeratorCtApplications() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight text-brand-900">
-            Заявки на ЦТ
+            Заявки абитуриентов на сдачу ЦТ
           </h1>
           <p className="mt-1 text-sm text-text-secondary">
             Подтверждение записи на сессии централизованного тестирования.
