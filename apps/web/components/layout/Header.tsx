@@ -6,7 +6,7 @@ import { Logo } from "./Logo";
 const navLinks = [
   { href: "/#how", label: "Как это работает" },
   { href: "/#features", label: "Возможности" },
-  { href: "/#faq", label: "FAQ" },
+  { href: "/#faq", label: "Частые вопросы" },
 ];
 
 export function Header() {

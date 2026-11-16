@@ -35,7 +35,7 @@ export default function RegisterPage() {
                 <span className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-500 text-xs font-bold">
                   2
                 </span>
-                <span>Личные данные (позже)</span>
+                <span>Личные данные</span>
               </li>
             </ol>
           </div>

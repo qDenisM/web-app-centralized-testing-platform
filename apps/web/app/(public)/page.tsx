@@ -216,11 +216,18 @@ export default function HomePage() {
               Готов оценить свои шансы?
             </h2>
             <p className="mx-auto max-w-lg text-sm text-slate-300">
-              Подай заявку на тестирование и дождись результатов
+              Зарегистрируйся бесплатно и оцени шансы по актуальному каталогу вузов
             </p>
-            <div className="pt-2">
-              <Button href="/login" className="inline-flex px-8 py-3 text-sm">
-                Перейти в личный кабинет
+            <div className="flex flex-wrap justify-center gap-3 pt-2">
+              <Button href="/register" className="inline-flex px-8 py-3 text-sm">
+                Начать бесплатно
+              </Button>
+              <Button
+                href="/login"
+                variant="secondary"
+                className="inline-flex border-white/20 bg-white/10 px-8 py-3 text-sm text-white hover:bg-white/20"
+              >
+                Войти в личный кабинет
               </Button>
             </div>
           </div>
