@@ -1,12 +1,12 @@
-export default function ExaminerExamsPage() {
-  return (
-    <div className="space-y-3">
-      <h1 className="text-2xl font-extrabold tracking-tight text-brand-900">
-        Экзамены сессии ЦТ 2026
-      </h1>
-      <p className="max-w-xl text-sm leading-relaxed text-text-secondary">
-        Раздел в разработке. Список сеансов ЦТ для экзаменатора появится позже.
-      </p>
-    </div>
-  );
+import { ExaminerExams } from "@/components/examiner/ExaminerExams";
+import { fetchCatalogSubjects } from "@/lib/catalog";
+
+export default async function ExaminerExamsPage() {
+  let subjects: Awaited<ReturnType<typeof fetchCatalogSubjects>> = [];
+  try {
+    subjects = await fetchCatalogSubjects();
+  } catch {
+    subjects = [];
+  }
+  return <ExaminerExams subjects={subjects} />;
 }
