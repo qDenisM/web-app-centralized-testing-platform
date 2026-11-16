@@ -1,6 +1,10 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
+import { homePathForRole } from "@/lib/auth";
 import { Logo } from "./Logo";
 
 const navLinks = [
@@ -10,6 +14,30 @@ const navLinks = [
 ];
 
 export function Header() {
+  const [cabinetHref, setCabinetHref] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const res = await fetch("/api/users/me");
+        const data = (await res.json().catch(() => null)) as
+          | { role?: string }
+          | null;
+        if (cancelled) return;
+        if (res.ok && data?.role) {
+          setCabinetHref(homePathForRole(data.role));
+        }
+      } catch {
+        if (!cancelled) setCabinetHref(null);
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-white">
       <Container className="flex h-16 items-center justify-between gap-3">
@@ -28,21 +56,31 @@ export function Header() {
         </nav>
 
         <div className="flex shrink-0 items-center gap-2">
-          <Button
-            href="/login"
-            variant="secondary"
-            className="hidden h-10 items-center px-4 text-sm md:inline-flex"
-          >
-            Войти
-          </Button>
-
-          <Button
-            href="/register"
-            className="inline-flex h-10 items-center whitespace-nowrap px-4 text-sm"
-          >
-            <span className="max-[530px]:hidden">Начать бесплатно</span>
-            <span className="hidden max-[530px]:inline">Начать</span>
-          </Button>
+          {cabinetHref ? (
+            <Button
+              href={cabinetHref}
+              className="hidden h-10 items-center px-4 text-sm md:inline-flex"
+            >
+              В кабинет
+            </Button>
+          ) : (
+            <>
+              <Button
+                href="/login"
+                variant="secondary"
+                className="hidden h-10 items-center px-4 text-sm md:inline-flex"
+              >
+                Войти
+              </Button>
+              <Button
+                href="/register"
+                className="inline-flex h-10 items-center whitespace-nowrap px-4 text-sm"
+              >
+                <span className="max-[530px]:hidden">Начать бесплатно</span>
+                <span className="hidden max-[530px]:inline">Начать</span>
+              </Button>
+            </>
+          )}
 
           <details className="relative md:hidden">
             <summary
@@ -63,10 +101,10 @@ export function Header() {
                 </a>
               ))}
               <Link
-                href="/login"
+                href={cabinetHref || "/login"}
                 className="mt-1 block rounded-lg border-t border-border px-3 py-2 text-sm font-semibold text-text-secondary hover:bg-bg-page hover:text-brand-900"
               >
-                Войти
+                {cabinetHref ? "В кабинет" : "Войти"}
               </Link>
             </nav>
           </details>

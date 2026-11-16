@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { FormButton } from "@/components/ui/FormButton";
 import { Input } from "@/components/ui/Input";
@@ -12,7 +12,6 @@ type LoginOk = {
 };
 
 export function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const nextPath = searchParams.get("next");
 
@@ -47,8 +46,8 @@ export function LoginForm() {
           ? nextPath
           : data.homePath || "/app";
 
-      router.replace(target);
-      router.refresh();
+      window.location.assign(target);
+      return;
     } catch {
       setError("Сеть недоступна. Проверьте, что identity запущен.");
     } finally {

@@ -4,10 +4,10 @@ import type { ReactNode } from "react";
 import { RoleShell } from "@/components/layout/RoleShell";
 
 const navItems = [
-  { href: "/examiner", label: "Результаты ЦТ", exact: true },
-  { href: "/examiner/exams", label: "Экзамены ЦТ" },
-  { href: "/examiner/applicants", label: "Абитуриенты" },
-  { href: "/examiner/import", label: "Импорт результатов" },
+  { href: "/examiner", label: "Результаты ЦТ", exact: true, icon: "results" as const },
+  { href: "/examiner/exams", label: "Экзамены ЦТ", icon: "exams" as const },
+  { href: "/examiner/applicants", label: "Абитуриенты", icon: "applicants" as const },
+  { href: "/examiner/import", label: "Импорт результатов", icon: "import" as const },
 ];
 
 type ExaminerShellProps = {
@@ -19,6 +19,7 @@ export function ExaminerShell({ children }: ExaminerShellProps) {
     <RoleShell
       navItems={navItems}
       roleName="Экзаменатор"
+      homeHref="/examiner"
       profileLinks={[{ href: "/examiner", label: "Результаты ЦТ", icon: "profile" }]}
       headerBadge={
         <span className="hidden rounded-full bg-brand-100 px-3 py-1 text-xs font-semibold text-brand-900 sm:inline">

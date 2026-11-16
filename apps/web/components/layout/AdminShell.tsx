@@ -4,12 +4,12 @@ import type { ReactNode } from "react";
 import { RoleShell } from "@/components/layout/RoleShell";
 
 const navItems = [
-  { href: "/admin", label: "Обзор", exact: true },
-  { href: "/admin/users", label: "Пользователи" },
-  { href: "/admin/campaign", label: "Приёмная кампания" },
-  { href: "/admin/universities", label: "Вузы и колледжи" },
-  { href: "/admin/specialties", label: "Специальности" },
-  { href: "/admin/subjects", label: "Предметы ЦТ" },
+  { href: "/admin", label: "Обзор", exact: true, icon: "overview" as const },
+  { href: "/admin/users", label: "Пользователи", icon: "users" as const },
+  { href: "/admin/campaign", label: "Приёмная кампания", icon: "campaign" as const },
+  { href: "/admin/universities", label: "Вузы и колледжи", icon: "universities" as const },
+  { href: "/admin/specialties", label: "Специальности", icon: "specialty" as const },
+  { href: "/admin/subjects", label: "Предметы ЦТ", icon: "subject" as const },
 ];
 
 type AdminShellProps = {
@@ -21,6 +21,7 @@ export function AdminShell({ children }: AdminShellProps) {
     <RoleShell
       navItems={navItems}
       roleName="Администратор"
+      homeHref="/admin"
       profileLinks={[{ href: "/admin", label: "Обзор системы", icon: "profile" }]}
       headerBadge={
         <span className="hidden rounded-full bg-brand-100 px-3 py-1 text-xs font-semibold text-brand-900 sm:inline">

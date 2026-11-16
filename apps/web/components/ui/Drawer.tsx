@@ -37,11 +37,10 @@ export function Drawer({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
-      <button
-        type="button"
-        aria-label="Закрыть"
-        className="absolute inset-0 bg-[#0b3a4a]/40"
+    <div className="fixed inset-0 z-[100] flex justify-end">
+      <div
+        aria-hidden
+        className="absolute inset-0 z-0 bg-[#0b3a4a]/40"
         onClick={onClose}
       />
       <div
@@ -49,9 +48,10 @@ export function Drawer({
         aria-modal="true"
         aria-labelledby="drawer-title"
         className={cn(
-          "relative z-10 flex h-full w-full flex-col bg-white shadow-[-12px_0_40px_rgba(11,58,74,0.12)]",
+          "relative z-10 flex h-full w-full flex-col bg-white pointer-events-auto shadow-[-12px_0_40px_rgba(11,58,74,0.12)]",
           widthClassName,
         )}
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
           <h2 id="drawer-title" className="text-lg font-extrabold text-brand-900">

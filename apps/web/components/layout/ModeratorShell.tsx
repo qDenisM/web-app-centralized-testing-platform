@@ -4,10 +4,10 @@ import type { ReactNode } from "react";
 import { RoleShell } from "@/components/layout/RoleShell";
 
 const navItems = [
-  { href: "/moderator", label: "Обзор очереди", exact: true },
-  { href: "/moderator/docs", label: "Проверка данных" },
-  { href: "/moderator/applications", label: "Заявки на ЦТ" },
-  { href: "/moderator/history", label: "История решений" },
+  { href: "/moderator", label: "Обзор очереди", exact: true, icon: "queue" as const },
+  { href: "/moderator/docs", label: "Проверка данных", icon: "docs" as const },
+  { href: "/moderator/applications", label: "Заявки на ЦТ", icon: "applications" as const },
+  { href: "/moderator/history", label: "История решений", icon: "history" as const },
 ];
 
 type ModeratorShellProps = {
@@ -19,6 +19,7 @@ export function ModeratorShell({ children }: ModeratorShellProps) {
     <RoleShell
       navItems={navItems}
       roleName="Модератор"
+      homeHref="/moderator"
       profileLinks={[{ href: "/moderator", label: "Обзор очереди", icon: "profile" }]}
       headerBadge={
         <span className="hidden rounded-full bg-brand-100 px-3 py-1 text-xs font-semibold text-brand-900 sm:inline">

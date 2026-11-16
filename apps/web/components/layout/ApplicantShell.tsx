@@ -5,10 +5,10 @@ import { CompetitiveScoreBadge } from "@/components/layout/CompetitiveScoreBadge
 import { RoleShell } from "@/components/layout/RoleShell";
 
 const navItems = [
-  { href: "/app", label: "Главная", exact: true },
-  { href: "/app/ct", label: "Мои ЦТ" },
-  { href: "/app/certificate", label: "Аттестат" },
-  { href: "/app/universities", label: "Университеты" },
+  { href: "/app", label: "Главная", exact: true, icon: "home" as const },
+  { href: "/app/ct", label: "Мои ЦТ", icon: "ct" as const },
+  { href: "/app/certificate", label: "Аттестат", icon: "certificate" as const },
+  { href: "/app/universities", label: "Университеты", icon: "universities" as const },
 ];
 
 type ApplicantShellProps = {
@@ -20,6 +20,7 @@ export function ApplicantShell({ children }: ApplicantShellProps) {
     <RoleShell
       navItems={navItems}
       roleName="Абитуриент"
+      homeHref="/app"
       headerBadge={<CompetitiveScoreBadge />}
       profileLinks={[
         {
@@ -32,6 +33,11 @@ export function ApplicantShell({ children }: ApplicantShellProps) {
           label: "Избранные специальности",
           icon: "favorites",
         },
+        {
+          href: "/app/profile",
+          label: "Настройки",
+          icon: "settings",
+        },
       ]}
       footer={{
         roleLabel: "Абитуриенту",
@@ -40,7 +46,7 @@ export function ApplicantShell({ children }: ApplicantShellProps) {
           { href: "/app/ct", label: "Мои ЦТ" },
           { href: "/app/certificate", label: "Аттестат" },
           { href: "/app/universities", label: "Университеты" },
-          { href: "/app/profile", label: "Профиль" },
+          { href: "/app/profile", label: "Настройки" },
           { href: "/app/notifications", label: "Уведомления" },
         ],
         ctaTitle: "Шансы",

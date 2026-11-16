@@ -45,11 +45,10 @@ export function Modal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button
-        type="button"
-        aria-label="Закрыть"
-        className="absolute inset-0 bg-[#0b3a4a]/45"
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div
+        aria-hidden
+        className="absolute inset-0 z-0 bg-[#0b3a4a]/45"
         onClick={onClose}
       />
       <div
@@ -57,10 +56,11 @@ export function Modal({
         aria-modal="true"
         aria-labelledby="modal-title"
         className={cn(
-          "relative z-10 flex max-h-[90vh] w-full flex-col overflow-hidden rounded-[14px] bg-white shadow-[0_20px_50px_rgba(11,58,74,0.18)]",
+          "relative z-10 flex max-h-[90vh] w-full flex-col overflow-hidden rounded-[14px] bg-white pointer-events-auto shadow-[0_20px_50px_rgba(11,58,74,0.18)]",
           sizes[size],
           className,
         )}
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
           <h2 id="modal-title" className="text-lg font-extrabold text-brand-900">

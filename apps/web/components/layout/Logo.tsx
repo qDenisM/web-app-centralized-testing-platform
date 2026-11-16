@@ -3,11 +3,12 @@ import Link from "next/link";
 
 type LogoProps = {
   compact?: boolean;
+  href?: string;
 };
 
-export function Logo({ compact = false }: LogoProps) {
+export function Logo({ compact = false, href = "/" }: LogoProps) {
   return (
-    <Link href="/" className="inline-flex shrink-0 items-center gap-2.5">
+    <Link href={href} className="inline-flex shrink-0 items-center gap-2.5">
       <Image
         src="/logo-icon.png"
         alt="Ориентир"

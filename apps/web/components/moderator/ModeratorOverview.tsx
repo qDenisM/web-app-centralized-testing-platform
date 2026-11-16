@@ -10,24 +10,6 @@ type CtQueueCounts = {
   rejected: number;
 };
 
-const HOT_DEADLINES = [
-  {
-    title: "Заявки на ЦТ до 18:00",
-    detail: "Осталось 12 заявок без решения",
-    tone: "urgent" as const,
-  },
-  {
-    title: "Анкеты старше 36 ч",
-    detail: "4 карточки превышают норматив SLA",
-    tone: "warn" as const,
-  },
-  {
-    title: "Лист ожидания на математику",
-    detail: "Проверить перенос на резервный сеанс",
-    tone: "neutral" as const,
-  },
-];
-
 export function ModeratorOverview() {
   const [verifications, setVerifications] =
     useState<ModeratorQueueResponse | null>(null);
@@ -79,10 +61,41 @@ export function ModeratorOverview() {
     };
   }, []);
 
-  const docPending = verifications?.counts.pending ?? "—";
-  const docReturned = verifications?.counts.returned ?? "—";
-  const ctPending = ctCounts?.pending ?? "—";
-  const ctApprovedToday = ctCounts?.approved ?? "—";
+  const docPendingNum = verifications?.counts.pending ?? 0;
+  const docReturnedNum = verifications?.counts.returned ?? 0;
+  const ctPendingNum = ctCounts?.pending ?? 0;
+  const ctApprovedNum = ctCounts?.approved ?? 0;
+
+  const hotItems: Array<{
+    title: string;
+    detail: string;
+    href: string;
+    tone: "urgent" | "warn" | "neutral";
+  }> = [];
+  if (ctPendingNum > 0) {
+    hotItems.push({
+      title: "Заявки на ЦТ без решения",
+      detail: `В очереди ${ctPendingNum}`,
+      href: "/moderator/applications",
+      tone: ctPendingNum >= 5 ? "urgent" : "warn",
+    });
+  }
+  if (docPendingNum > 0) {
+    hotItems.push({
+      title: "Анкеты на проверке",
+      detail: `${docPendingNum} карточек ожидают решения`,
+      href: "/moderator/docs",
+      tone: docPendingNum >= 5 ? "urgent" : "warn",
+    });
+  }
+  if (docReturnedNum > 0) {
+    hotItems.push({
+      title: "На исправлении",
+      detail: `${docReturnedNum} анкет возвращены абитуриенту`,
+      href: "/moderator/docs?status=returned",
+      tone: "neutral",
+    });
+  }
 
   return (
     <div className="space-y-6">
@@ -114,48 +127,47 @@ export function ModeratorOverview() {
       ) : (
         <>
           <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <KpiCard label="Анкеты на проверке" value={String(docPending)} />
-            <KpiCard label="На исправлении" value={String(docReturned)} />
-            <KpiCard label="Заявки ЦТ в очереди" value={String(ctPending)} />
-            <KpiCard
-              label="Одобрено заявок ЦТ"
-              value={String(ctApprovedToday)}
-            />
+            <KpiCard label="Анкеты на проверке" value={String(docPendingNum)} />
+            <KpiCard label="На исправлении" value={String(docReturnedNum)} />
+            <KpiCard label="Заявки ЦТ в очереди" value={String(ctPendingNum)} />
+            <KpiCard label="Одобрено заявок ЦТ" value={String(ctApprovedNum)} />
           </section>
 
           <section className="rounded-[14px] border border-border bg-white p-5 shadow-[var(--shadow-soft)]">
             <h2 className="text-sm font-bold uppercase tracking-wide text-text-muted">
               Горящие дедлайны
             </h2>
-            <ul className="mt-4 space-y-3">
-              {HOT_DEADLINES.map((item) => (
-                <li
-                  key={item.title}
-                  className={`flex flex-wrap items-center justify-between gap-2 rounded-[10px] border px-4 py-3 text-sm ${
-                    item.tone === "urgent"
-                      ? "border-[#c94343]/30 bg-[#fdecec]"
-                      : item.tone === "warn"
-                        ? "border-[#C6900A]/30 bg-[#FFF4D6]"
-                        : "border-border bg-[#f8fafc]"
-                  }`}
-                >
-                  <div>
-                    <div className="font-bold text-brand-900">{item.title}</div>
-                    <div className="text-text-secondary">{item.detail}</div>
-                  </div>
-                  <Link
-                    href={
-                      item.title.includes("Заявки")
-                        ? "/moderator/applications"
-                        : "/moderator/docs"
-                    }
-                    className="text-sm font-bold text-brand-700 hover:underline"
+            {hotItems.length === 0 ? (
+              <p className="mt-4 text-sm text-text-muted">
+                Срочных задач в очередях нет.
+              </p>
+            ) : (
+              <ul className="mt-4 space-y-3">
+                {hotItems.map((item) => (
+                  <li
+                    key={item.title}
+                    className={`flex flex-wrap items-center justify-between gap-2 rounded-[10px] border px-4 py-3 text-sm ${
+                      item.tone === "urgent"
+                        ? "border-[#c94343]/30 bg-[#fdecec]"
+                        : item.tone === "warn"
+                          ? "border-[#C6900A]/30 bg-[#FFF4D6]"
+                          : "border-border bg-[#f8fafc]"
+                    }`}
                   >
-                    Открыть →
-                  </Link>
-                </li>
-              ))}
-            </ul>
+                    <div>
+                      <div className="font-bold text-brand-900">{item.title}</div>
+                      <div className="text-text-secondary">{item.detail}</div>
+                    </div>
+                    <Link
+                      href={item.href}
+                      className="text-sm font-bold text-brand-700 hover:underline"
+                    >
+                      Открыть →
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
 
           <div className="grid gap-4 sm:grid-cols-2">
