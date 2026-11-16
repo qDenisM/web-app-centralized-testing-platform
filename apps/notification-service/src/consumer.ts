@@ -1,5 +1,7 @@
 import {
+  EVENT_RESULT_PUBLISHED,
   EVENT_VERIFICATION_DECIDED,
+  type ResultPublishedEvent,
   type VerificationDecidedEvent,
 } from "@abiturent/contracts";
 import { consumeEvents, type RabbitClient } from "@abiturent/service-kit";
@@ -41,6 +43,16 @@ function isVerificationDecided(payload: unknown): payload is VerificationDecided
   );
 }
 
+function isResultPublished(payload: unknown): payload is ResultPublishedEvent {
+  if (!payload || typeof payload !== "object") return false;
+  const row = payload as Partial<ResultPublishedEvent>;
+  return (
+    row.type === EVENT_RESULT_PUBLISHED &&
+    typeof row.userId === "string" &&
+    typeof row.score === "number"
+  );
+}
+
 export async function startNotificationConsumers(
   client: RabbitClient,
 ): Promise<void> {
@@ -57,6 +69,23 @@ export async function startNotificationConsumers(
           channel: "in_app",
           title: text.title,
           body: text.body,
+        },
+      });
+    },
+  });
+
+  await consumeEvents(client, {
+    queue: "notification.result.published",
+    routingKey: EVENT_RESULT_PUBLISHED,
+    onMessage: async (payload) => {
+      if (!isResultPublished(payload)) return;
+
+      await prisma.notification.create({
+        data: {
+          userId: payload.userId,
+          channel: "in_app",
+          title: "Опубликован результат ЦТ",
+          body: `Ваш балл по экзамену: ${payload.score}. Смотрите вкладку «Результаты» в кабинете.`,
         },
       });
     },

@@ -4,6 +4,7 @@ import { AppError, validate } from "@abiturent/service-kit";
 import { requireExaminer } from "../auth.js";
 import { config } from "../config.js";
 import { prisma } from "../db.js";
+import { publishResultPublished } from "../notify.js";
 import { resultJson } from "../serializers.js";
 
 export const examinerRoutes = Router();
@@ -158,6 +159,12 @@ examinerRoutes.post(
             enteredBy: row.enteredBy || examinerId,
           },
         });
+        await publishResultPublished({
+          userId: updated.userId,
+          resultId: updated.id,
+          examId: updated.examId,
+          score: updated.score!,
+        });
         published.push(resultJson(updated));
       }
 
@@ -237,6 +244,13 @@ examinerRoutes.post(
           publishedAt: new Date(),
           enteredBy: row.enteredBy || examinerId,
         },
+      });
+
+      await publishResultPublished({
+        userId: updated.userId,
+        resultId: updated.id,
+        examId: updated.examId,
+        score: updated.score!,
       });
 
       res.status(200).json(resultJson(updated));
