@@ -14,6 +14,9 @@ const EnvSchema = z.object({
     .default("http://localhost:3001/.well-known/jwks.json"),
   JWT_ISSUER: z.string().default("abiturent-identity"),
   JWT_AUDIENCE: z.string().default("abiturent"),
+  RABBITMQ_URL: z
+    .string()
+    .default("amqp://abiturent:abiturent@localhost:5672"),
 });
 
 const parsed = EnvSchema.parse(process.env);
@@ -26,4 +29,5 @@ export const config = {
   jwksUrl: parsed.JWKS_URL,
   jwtIssuer: parsed.JWT_ISSUER,
   jwtAudience: parsed.JWT_AUDIENCE,
+  rabbitmqUrl: parsed.RABBITMQ_URL,
 };

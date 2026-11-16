@@ -25,7 +25,9 @@ const EnvSchema = z.object({
     .transform((v) => v !== "false"),
   UPLOAD_URL_TTL_SEC: z.coerce.number().int().positive().default(600),
   AI_URL: z.string().url().default("http://localhost:3010"),
-  NOTIFICATION_URL: z.string().url().default("http://localhost:3007"),
+  RABBITMQ_URL: z
+    .string()
+    .default("amqp://abiturent:abiturent@localhost:5672"),
 });
 
 const parsed = EnvSchema.parse(process.env);
@@ -48,5 +50,5 @@ export const config = {
   },
   uploadUrlTtlSec: parsed.UPLOAD_URL_TTL_SEC,
   aiUrl: parsed.AI_URL,
-  notificationUrl: parsed.NOTIFICATION_URL,
+  rabbitmqUrl: parsed.RABBITMQ_URL,
 };

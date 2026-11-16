@@ -1,9 +1,16 @@
+import {
+  closeRabbit,
+  connectRabbit,
+  type RabbitClient,
+} from "@abiturent/service-kit";
 import { buildApp } from "./app.js";
 import { config } from "./config.js";
 import { prisma } from "./db.js";
+import { setRabbitClient } from "./notify.js";
 import { ensureDocumentsBucket } from "./storage.js";
 
 const { app, logger } = buildApp();
+let rabbit: RabbitClient | null = null;
 
 const server = app.listen(config.port, () => {
   logger.info({ port: config.port }, "applicant-service listening");
@@ -17,11 +24,24 @@ const server = app.listen(config.port, () => {
     .catch((err: unknown) => {
       logger.error({ err }, "minio bucket init failed");
     });
+
+  void connectRabbit(config.rabbitmqUrl)
+    .then((client) => {
+      rabbit = client;
+      setRabbitClient(client);
+      logger.info("rabbitmq connected");
+    })
+    .catch((err: unknown) => {
+      logger.error({ err }, "rabbitmq connect failed");
+    });
 });
 
 async function shutdown(signal: string) {
   logger.info({ signal }, "shutting down");
   server.close();
+  setRabbitClient(null);
+  await closeRabbit(rabbit);
+  rabbit = null;
   await prisma.$disconnect();
   process.exit(0);
 }

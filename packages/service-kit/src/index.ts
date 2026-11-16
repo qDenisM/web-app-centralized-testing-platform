@@ -7,3 +7,11 @@ export {
   type CreateAppOptions,
   type CreatedApp,
 } from "./create-app.js";
+export {
+  connectRabbit,
+  publishEvent,
+  consumeEvents,
+  closeRabbit,
+  type RabbitClient,
+} from "./rabbit.js";
+

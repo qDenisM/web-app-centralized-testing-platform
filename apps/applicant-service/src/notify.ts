@@ -1,51 +1,31 @@
-import { config } from "./config.js";
+import {
+  EVENT_VERIFICATION_DECIDED,
+  type VerificationDecidedEvent,
+} from "@abiturent/contracts";
+import { publishEvent, type RabbitClient } from "@abiturent/service-kit";
 
-export async function sendNotification(input: {
-  userId: string;
-  title: string;
-  body: string;
-}): Promise<void> {
-  try {
-    await fetch(`${config.notificationUrl}/notifications`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({
-        userId: input.userId,
-        channel: "in_app",
-        title: input.title,
-        body: input.body,
-      }),
-    });
-  } catch {
-    return;
-  }
+let rabbit: RabbitClient | null = null;
+
+export function setRabbitClient(client: RabbitClient | null) {
+  rabbit = client;
 }
 
-export function decisionNotificationText(
-  decision: "approved" | "returned" | "rejected",
-  reason?: string | null,
-): { title: string; body: string } {
-  if (decision === "approved") {
-    return {
-      title: "Анкета подтверждена",
-      body: "Модератор подтвердил ваши персональные данные. Можно продолжать запись на ЦТ.",
-    };
-  }
-  if (decision === "returned") {
-    return {
-      title: "Анкета возвращена на исправление",
-      body: reason?.trim()
-        ? `Проверьте данные и отправьте снова. Причина: ${reason.trim()}`
-        : "Проверьте данные и отправьте анкету снова.",
-    };
-  }
-  return {
-    title: "В анкете отказано",
-    body: reason?.trim()
-      ? `Модератор отклонил анкету. Причина: ${reason.trim()}`
-      : "Модератор отклонил анкету.",
+export async function publishVerificationDecided(input: {
+  userId: string;
+  verificationId: string;
+  decision: "approved" | "returned" | "rejected";
+  reason: string | null;
+}): Promise<void> {
+  if (!rabbit) return;
+
+  const payload: VerificationDecidedEvent = {
+    type: EVENT_VERIFICATION_DECIDED,
+    userId: input.userId,
+    verificationId: input.verificationId,
+    decision: input.decision,
+    reason: input.reason,
+    at: new Date().toISOString(),
   };
+
+  await publishEvent(rabbit, EVENT_VERIFICATION_DECIDED, payload);
 }

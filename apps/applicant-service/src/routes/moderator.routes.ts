@@ -3,10 +3,7 @@ import { z } from "zod";
 import { AppError, validate } from "@abiturent/service-kit";
 import { requireModerator } from "../auth.js";
 import { prisma } from "../db.js";
-import {
-  decisionNotificationText,
-  sendNotification,
-} from "../notify.js";
+import { publishVerificationDecided } from "../notify.js";
 import { verificationQueueJson } from "../serializers.js";
 
 export const moderatorRoutes = Router();
@@ -166,11 +163,11 @@ moderatorRoutes.post(
         include: { profile: true },
       });
 
-      const text = decisionNotificationText(body.decision, rejectReason);
-      await sendNotification({
+      await publishVerificationDecided({
         userId: updated.profile.userId,
-        title: text.title,
-        body: text.body,
+        verificationId: updated.id,
+        decision: body.decision,
+        reason: rejectReason,
       });
 
       res.status(200).json(verificationQueueJson(updated));
