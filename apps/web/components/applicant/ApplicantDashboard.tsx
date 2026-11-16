@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ApplicantProfile } from "@/lib/applicant";
 import type { ChanceResult, Favorite } from "@/lib/chances";
+import type { CatalogSpecialty, CatalogSubject } from "@/lib/catalog";
 import { catalogChanceLabel } from "@/lib/chances-display";
 import type { CtResult } from "@/lib/results";
 import {
@@ -38,6 +39,8 @@ export function ApplicantDashboard() {
   const [passBusyId, setPassBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [specialties, setSpecialties] = useState<CatalogSpecialty[]>([]);
+  const [subjects, setSubjects] = useState<CatalogSubject[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,15 +49,25 @@ export function ApplicantDashboard() {
       setLoading(true);
       setError(null);
       try {
-        const [profileRes, resultsRes, favRes, chanceRes, campRes, appsRes] =
-          await Promise.all([
-            fetch("/api/applicant/profile"),
-            fetch("/api/results/me"),
-            fetch("/api/favorites"),
-            fetch("/api/chances/me"),
-            fetch("/api/catalog/campaigns/active"),
-            fetch("/api/exam/applications/me"),
-          ]);
+        const [
+          profileRes,
+          resultsRes,
+          favRes,
+          chanceRes,
+          campRes,
+          appsRes,
+          specRes,
+          subjRes,
+        ] = await Promise.all([
+          fetch("/api/applicant/profile"),
+          fetch("/api/results/me"),
+          fetch("/api/favorites"),
+          fetch("/api/chances/me"),
+          fetch("/api/catalog/campaigns/active"),
+          fetch("/api/exam/applications/me"),
+          fetch("/api/catalog/specialties"),
+          fetch("/api/catalog/subjects"),
+        ]);
 
         const profileJson = (await profileRes.json().catch(() => null)) as
           | ApplicantProfile
@@ -74,6 +87,12 @@ export function ApplicantDashboard() {
           | { error?: string };
         const appsJson = (await appsRes.json().catch(() => [])) as
           | ExamApplication[]
+          | { error?: string };
+        const specJson = (await specRes.json().catch(() => [])) as
+          | CatalogSpecialty[]
+          | { error?: string };
+        const subjJson = (await subjRes.json().catch(() => [])) as
+          | CatalogSubject[]
           | { error?: string };
 
         if (cancelled) return;
@@ -95,6 +114,12 @@ export function ApplicantDashboard() {
         }
         if (appsRes.ok && Array.isArray(appsJson)) {
           setApplications(appsJson);
+        }
+        if (specRes.ok && Array.isArray(specJson)) {
+          setSpecialties(specJson);
+        }
+        if (subjRes.ok && Array.isArray(subjJson)) {
+          setSubjects(subjJson);
         }
       } catch {
         if (!cancelled) setError("Не удалось загрузить сводку");
@@ -130,6 +155,18 @@ export function ApplicantDashboard() {
 
   const stages = campaign?.stages || [];
   const now = Date.now();
+
+  const specialtyById = useMemo(() => {
+    const map = new Map<string, CatalogSpecialty>();
+    for (const row of specialties) map.set(row.id, row);
+    return map;
+  }, [specialties]);
+
+  const subjectName = useCallback(
+    (subjectId: string | undefined) =>
+      subjects.find((s) => s.id === subjectId)?.name || "Предмет",
+    [subjects],
+  );
 
   const upcomingCt = useMemo(() => {
     const approved = applications.filter((app) => app.status === "approved");
@@ -243,7 +280,7 @@ export function ApplicantDashboard() {
                     <div>
                       <p className="text-sm font-bold text-brand-900">
                         {app.exam?.subjectId
-                          ? `Предмет · ${app.exam.subjectId.slice(0, 8)}`
+                          ? subjectName(app.exam.subjectId)
                           : "Сеанс ЦТ"}
                       </p>
                       <p className="mt-0.5 text-sm text-text-secondary">
@@ -339,13 +376,19 @@ export function ApplicantDashboard() {
                     const chance = chances.find(
                       (c) => c.specialtyId === fav.specialtyId,
                     );
+                    const specialty = specialtyById.get(fav.specialtyId);
+                    const institution = specialty?.institution;
                     return (
                       <li
                         key={fav.id}
                         className="flex items-center justify-between gap-2 rounded-[10px] border border-border px-3 py-2.5 text-sm"
                       >
                         <span className="font-medium text-text-primary">
-                          Специальность {fav.specialtyId.slice(0, 8)}…
+                          {specialty
+                            ? institution
+                              ? `${institution.shortName} — ${specialty.name}`
+                              : specialty.name
+                            : `Специальность ${fav.specialtyId.slice(0, 8)}…`}
                         </span>
                         <span
                           className={cn(

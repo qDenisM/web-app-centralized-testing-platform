@@ -345,6 +345,49 @@ usersRoutes.patch(
   },
 );
 
+usersRoutes.get(
+  "/admin/users/:id/audit",
+  authenticateLocal(),
+  requireRole("admin"),
+  async (req, res, next) => {
+    try {
+      const targetId = String(req.params.id);
+      const target = await prisma.user.findUnique({ where: { id: targetId } });
+      if (!target) {
+        throw AppError.notFound("User not found");
+      }
+
+      const rows = await prisma.auditLog.findMany({
+        where: { targetId },
+        orderBy: { createdAt: "desc" },
+        include: {
+          actor: {
+            select: { id: true, email: true, fullName: true },
+          },
+        },
+      });
+
+      res.status(200).json({
+        items: rows.map((row) => ({
+          id: String(row.id),
+          action: row.action,
+          payload: row.payload,
+          createdAt: row.createdAt.toISOString(),
+          actor: row.actor
+            ? {
+                id: row.actor.id,
+                email: row.actor.email,
+                fullName: row.actor.fullName,
+              }
+            : null,
+        })),
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
 usersRoutes.post(
   "/admin/users/:id/unblock",
   authenticateLocal(),

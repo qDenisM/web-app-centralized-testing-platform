@@ -22,6 +22,7 @@ type UniversitiesCatalogProps = {
 };
 
 type SortMode = "score-desc" | "score-asc" | "name";
+type ChanceFilter = "" | "green" | "yellow" | "red" | "none";
 
 const emptyFilters = {
   university: "",
@@ -31,6 +32,7 @@ const emptyFilters = {
   studyForm: "",
   type: "",
   subjectIds: [] as string[],
+  chance: "" as ChanceFilter,
 };
 
 export function UniversitiesCatalog({
@@ -226,6 +228,15 @@ export function UniversitiesCatalog({
         }
       }
 
+      if (filters.chance) {
+        const chance = chanceBySpecialty.get(item.id);
+        if (filters.chance === "none") {
+          if (chance) return false;
+        } else if (!chance || chance.status !== filters.chance) {
+          return false;
+        }
+      }
+
       return true;
     });
 
@@ -239,7 +250,7 @@ export function UniversitiesCatalog({
     });
 
     return rows;
-  }, [filters, sort, specialties]);
+  }, [filters, sort, specialties, chanceBySpecialty]);
 
   function toggleSubject(id: string) {
     setFilters((prev) => {
@@ -262,7 +273,13 @@ export function UniversitiesCatalog({
         <p className="mt-1 text-sm text-text-secondary">
           Подбор вузов и колледжей с оценкой шансов по баллам ЦТ и аттестату.
         </p>
-        <ChanceLegend className="mt-3" />
+        <ChanceLegend
+          className="mt-3"
+          value={filters.chance}
+          onChange={(chance) =>
+            setFilters((prev) => ({ ...prev, chance }))
+          }
+        />
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -496,7 +513,7 @@ export function UniversitiesCatalog({
                 return (
                   <li
                     key={item.id}
-                    className="rounded-[14px] border border-border bg-white p-4 shadow-[var(--shadow-soft)]"
+                    className="relative rounded-[14px] border border-border bg-white p-4 pb-12 shadow-[var(--shadow-soft)]"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div>
@@ -511,6 +528,9 @@ export function UniversitiesCatalog({
                           {institutionTypeLabel(institution.type)}
                         </p>
                       </div>
+                    </div>
+
+                    <div className="absolute bottom-3 left-3">
                       {chance ? (
                         <ChanceBadge chance={chance} />
                       ) : (
@@ -612,26 +632,63 @@ export function UniversitiesCatalog({
   );
 }
 
-function ChanceLegend({ className }: { className?: string }) {
-  const items: { status: ChanceResult["status"]; label: string }[] = [
-    { status: "green", label: "Проходит" },
-    { status: "yellow", label: "На грани" },
-    { status: "red", label: "Не хватает" },
+function ChanceLegend({
+  className,
+  value,
+  onChange,
+}: {
+  className?: string;
+  value: ChanceFilter;
+  onChange: (next: ChanceFilter) => void;
+}) {
+  const items: {
+    key: ChanceFilter;
+    status?: ChanceResult["status"];
+    label: string;
+  }[] = [
+    { key: "green", status: "green", label: "Проходит" },
+    { key: "yellow", status: "yellow", label: "На грани" },
+    { key: "red", status: "red", label: "Не хватает" },
+    { key: "none", label: "Без оценки" },
   ];
   return (
     <div
-      className={`flex flex-wrap gap-4 text-sm text-text-secondary ${className || ""}`}
+      className={`flex flex-wrap items-center gap-2 text-sm text-text-secondary ${className || ""}`}
     >
+      <span className="text-xs font-bold uppercase tracking-wide text-text-muted">
+        Шанс:
+      </span>
+      <button
+        type="button"
+        onClick={() => onChange("")}
+        className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+          value === ""
+            ? "border-brand-600 bg-brand-50 text-brand-900"
+            : "border-border bg-white text-text-secondary hover:bg-[#f4f7f9]"
+        }`}
+      >
+        Все
+      </button>
       {items.map((item) => (
-        <span
-          key={item.status}
-          className="inline-flex items-center gap-2 font-semibold"
+        <button
+          key={item.key}
+          type="button"
+          onClick={() => onChange(value === item.key ? "" : item.key)}
+          className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${
+            value === item.key
+              ? "border-brand-600 bg-brand-50 text-brand-900"
+              : "border-border bg-white text-text-secondary hover:bg-[#f4f7f9]"
+          }`}
         >
-          <span
-            className={`h-2.5 w-2.5 rounded-full ${chanceDotClasses(item.status)}`}
-          />
+          {item.status ? (
+            <span
+              className={`h-2.5 w-2.5 rounded-full ${chanceDotClasses(item.status)}`}
+            />
+          ) : (
+            <span className="h-2.5 w-2.5 rounded-full bg-border" />
+          )}
           {item.label}
-        </span>
+        </button>
       ))}
     </div>
   );

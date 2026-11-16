@@ -212,18 +212,13 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
       : ctSum || null;
 
   const errorsResult = useMemo(() => {
-    if (!errorsSubjectId && publishedResults.length > 0) {
-      return publishedResults[0];
-    }
-    if (errorsSubjectId) {
-      return (
-        publishedResults.find((r) => {
-          const exam = examById.get(r.examId);
-          return exam?.subjectId === errorsSubjectId;
-        }) || null
-      );
-    }
-    return null;
+    if (!errorsSubjectId) return null;
+    return (
+      publishedResults.find((r) => {
+        const exam = examById.get(r.examId);
+        return exam?.subjectId === errorsSubjectId;
+      }) || null
+    );
   }, [errorsSubjectId, publishedResults, examById]);
 
   async function apply(examId: string) {
@@ -741,66 +736,73 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
             </select>
           </label>
 
-          {!errorsResult ? (
+          {!errorsSubjectId ? (
             <p className="rounded-[14px] border border-border bg-white p-5 text-sm text-text-secondary shadow-[var(--shadow-soft)]">
               Выберите предмет с опубликованными результатами или дождитесь
               публикации баллов.
             </p>
           ) : (
-            <div className="grid gap-4 lg:grid-cols-3">
-              <section className="rounded-[14px] border border-border bg-white p-5 shadow-[var(--shadow-soft)]">
-                <h2 className="text-sm font-bold uppercase tracking-wide text-text-muted">
-                  Итог по варианту
-                </h2>
-                <p className="mt-3 text-sm font-semibold text-brand-900">
-                  {STUB_ERRORS.variantSummary}
-                </p>
-                <p className="mt-2 text-xs text-text-secondary">
-                  Предмет:{" "}
-                  {errorsResult && examById.get(errorsResult.examId)
-                    ? subjectName(
-                        examById.get(errorsResult.examId)!.subjectId,
-                      )
-                    : "—"}
-                  {" · "}балл {errorsResult.score ?? "—"}
-                </p>
-              </section>
+            <div className="space-y-3">
+              <p className="text-xs font-semibold text-text-muted">
+                Демо-разбор: данные ниже показаны для макета интерфейса.
+              </p>
+              <div className="grid gap-4 lg:grid-cols-3">
+                <section className="rounded-[14px] border border-border bg-white p-5 shadow-[var(--shadow-soft)]">
+                  <h2 className="text-sm font-bold uppercase tracking-wide text-text-muted">
+                    Итог по варианту
+                  </h2>
+                  <p className="mt-1 text-xs font-semibold text-amber-800">Демо</p>
+                  <p className="mt-3 text-sm font-semibold text-brand-900">
+                    {STUB_ERRORS.variantSummary}
+                  </p>
+                  <p className="mt-2 text-xs text-text-secondary">
+                    Предмет: {subjectName(errorsSubjectId)}
+                    {errorsResult
+                      ? ` · балл ${errorsResult.score ?? "—"}`
+                      : " · результат ещё не опубликован"}
+                  </p>
+                </section>
 
-              <section className="rounded-[14px] border border-border bg-white p-5 shadow-[var(--shadow-soft)]">
-                <h2 className="text-sm font-bold uppercase tracking-wide text-text-muted">
-                  Слабые темы
-                </h2>
-                <ul className="mt-3 space-y-2">
-                  {STUB_ERRORS.weakTopics.map((item) => (
-                    <li
-                      key={item.topic}
-                      className="flex items-center justify-between gap-2 text-sm"
-                    >
-                      <span className="text-text-secondary">{item.topic}</span>
-                      <span className="font-bold text-brand-800">{item.share}</span>
-                    </li>
-                  ))}
-                </ul>
-              </section>
+                <section className="rounded-[14px] border border-border bg-white p-5 shadow-[var(--shadow-soft)]">
+                  <h2 className="text-sm font-bold uppercase tracking-wide text-text-muted">
+                    Слабые темы
+                  </h2>
+                  <p className="mt-1 text-xs font-semibold text-amber-800">Демо</p>
+                  <ul className="mt-3 space-y-2">
+                    {STUB_ERRORS.weakTopics.map((item) => (
+                      <li
+                        key={item.topic}
+                        className="flex items-center justify-between gap-2 text-sm"
+                      >
+                        <span className="text-text-secondary">{item.topic}</span>
+                        <span className="font-bold text-brand-800">
+                          {item.share}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
 
-              <section className="rounded-[14px] border border-border bg-white p-5 shadow-[var(--shadow-soft)]">
-                <h2 className="text-sm font-bold uppercase tracking-wide text-text-muted">
-                  Ошибки в бланке ответов
-                </h2>
-                <ul className="mt-3 space-y-3">
-                  {STUB_ERRORS.blankMistakes.map((item) => (
-                    <li
-                      key={item.num}
-                      className="rounded-[10px] border border-border bg-[#f8fafc] px-3 py-2 text-sm"
-                    >
-                      <span className="font-bold text-brand-900">
-                        Задание {item.num}
-                      </span>
-                      <p className="mt-0.5 text-text-secondary">{item.note}</p>
-                    </li>
-                  ))}
-                </ul>
-              </section>
+                <section className="rounded-[14px] border border-border bg-white p-5 shadow-[var(--shadow-soft)]">
+                  <h2 className="text-sm font-bold uppercase tracking-wide text-text-muted">
+                    Ошибки в бланке ответов
+                  </h2>
+                  <p className="mt-1 text-xs font-semibold text-amber-800">Демо</p>
+                  <ul className="mt-3 space-y-3">
+                    {STUB_ERRORS.blankMistakes.map((item) => (
+                      <li
+                        key={item.num}
+                        className="rounded-[10px] border border-border bg-[#f8fafc] px-3 py-2 text-sm"
+                      >
+                        <span className="font-bold text-brand-900">
+                          Задание {item.num}
+                        </span>
+                        <p className="mt-0.5 text-text-secondary">{item.note}</p>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              </div>
             </div>
           )}
         </div>

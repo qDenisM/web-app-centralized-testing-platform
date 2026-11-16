@@ -10,6 +10,37 @@ export type AdminUser = {
   createdAt: string;
 };
 
+export type AuditLogItem = {
+  id: string;
+  action: string;
+  payload: unknown;
+  createdAt: string;
+  actor: { id: string; email: string; fullName: string } | null;
+};
+
+export type UserAuditLogResponse = {
+  items: AuditLogItem[];
+};
+
+export function auditActionLabel(action: string): string {
+  switch (action) {
+    case "block_user":
+      return "Блокировка";
+    case "unblock_user":
+      return "Разблокировка";
+    case "change_user_role":
+      return "Смена роли";
+    case "login":
+      return "Вход";
+    case "logout":
+      return "Выход";
+    case "register":
+      return "Регистрация";
+    default:
+      return action;
+  }
+}
+
 export type IdentityAdminStats = {
   usersTotal: number;
   usersActive: number;

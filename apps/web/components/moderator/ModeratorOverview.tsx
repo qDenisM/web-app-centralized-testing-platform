@@ -70,30 +70,22 @@ export function ModeratorOverview() {
     title: string;
     detail: string;
     href: string;
-    tone: "urgent" | "warn" | "neutral";
+    tone: "urgent" | "warn";
   }> = [];
-  if (ctPendingNum > 0) {
-    hotItems.push({
-      title: "Заявки на ЦТ без решения",
-      detail: `В очереди ${ctPendingNum}`,
-      href: "/moderator/applications",
-      tone: ctPendingNum >= 5 ? "urgent" : "warn",
-    });
-  }
   if (docPendingNum > 0) {
     hotItems.push({
       title: "Анкеты на проверке",
-      detail: `${docPendingNum} карточек ожидают решения`,
-      href: "/moderator/docs",
+      detail: `Ожидает решения: ${docPendingNum}`,
+      href: "/moderator/docs?status=pending",
       tone: docPendingNum >= 5 ? "urgent" : "warn",
     });
   }
-  if (docReturnedNum > 0) {
+  if (ctPendingNum > 0) {
     hotItems.push({
-      title: "На исправлении",
-      detail: `${docReturnedNum} анкет возвращены абитуриенту`,
-      href: "/moderator/docs?status=returned",
-      tone: "neutral",
+      title: "Заявки на ЦТ без решения",
+      detail: `В очереди: ${ctPendingNum}`,
+      href: "/moderator/applications?status=pending",
+      tone: ctPendingNum >= 5 ? "urgent" : "warn",
     });
   }
 
@@ -135,11 +127,11 @@ export function ModeratorOverview() {
 
           <section className="rounded-[14px] border border-border bg-white p-5 shadow-[var(--shadow-soft)]">
             <h2 className="text-sm font-bold uppercase tracking-wide text-text-muted">
-              Горящие дедлайны
+              Срочные задачи
             </h2>
             {hotItems.length === 0 ? (
               <p className="mt-4 text-sm text-text-muted">
-                Срочных задач в очередях нет.
+                Нет срочных очередей — все заявки обработаны.
               </p>
             ) : (
               <ul className="mt-4 space-y-3">
@@ -149,9 +141,7 @@ export function ModeratorOverview() {
                     className={`flex flex-wrap items-center justify-between gap-2 rounded-[10px] border px-4 py-3 text-sm ${
                       item.tone === "urgent"
                         ? "border-[#c94343]/30 bg-[#fdecec]"
-                        : item.tone === "warn"
-                          ? "border-[#C6900A]/30 bg-[#FFF4D6]"
-                          : "border-border bg-[#f8fafc]"
+                        : "border-[#C6900A]/30 bg-[#FFF4D6]"
                     }`}
                   >
                     <div>

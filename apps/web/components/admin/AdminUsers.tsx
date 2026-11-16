@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import {
   type AdminUser,
+  type AuditLogItem,
+  auditActionLabel,
   roleLabel,
   userStatusLabel,
 } from "@/lib/admin";
@@ -33,6 +35,9 @@ export function AdminUsers() {
   const [blockOpen, setBlockOpen] = useState(false);
   const [blockReason, setBlockReason] = useState("");
   const [blockTerm, setBlockTerm] = useState("");
+  const [auditItems, setAuditItems] = useState<AuditLogItem[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditError, setAuditError] = useState<string | null>(null);
 
   async function reload() {
     setLoading(true);
@@ -61,10 +66,45 @@ export function AdminUsers() {
     void reload();
   }, [query]);
 
+  useEffect(() => {
+    if (!drawerUser || drawerTab !== "history") {
+      return;
+    }
+    let cancelled = false;
+    async function loadAudit() {
+      setAuditLoading(true);
+      setAuditError(null);
+      try {
+        const res = await fetch(`/api/admin/users/${drawerUser!.id}/audit`);
+        const json = (await res.json().catch(() => ({}))) as {
+          items?: AuditLogItem[];
+          error?: string;
+        };
+        if (cancelled) return;
+        if (!res.ok) {
+          setAuditError(json.error || "Не удалось загрузить журнал");
+          setAuditItems([]);
+          return;
+        }
+        setAuditItems(json.items || []);
+      } catch {
+        if (!cancelled) setAuditError("Сеть недоступна");
+      } finally {
+        if (!cancelled) setAuditLoading(false);
+      }
+    }
+    void loadAudit();
+    return () => {
+      cancelled = true;
+    };
+  }, [drawerUser, drawerTab]);
+
   function openDrawer(user: AdminUser) {
     setDrawerUser(user);
     setDrawerTab("profile");
     setPendingRole(user.role);
+    setAuditItems([]);
+    setAuditError(null);
   }
 
   async function applyRole() {
@@ -339,15 +379,40 @@ export function AdminUsers() {
             ) : null}
 
             {drawerTab === "history" ? (
-              <ul className="space-y-2 text-sm text-text-secondary">
-                <li className="rounded-[10px] bg-[#f8fafc] px-3 py-2">
+              <div className="space-y-3 text-sm">
+                <p className="rounded-[10px] bg-[#f8fafc] px-3 py-2 text-text-secondary">
                   Создан:{" "}
                   {new Date(drawerUser.createdAt).toLocaleString("ru-RU")}
-                </li>
-                <li className="rounded-[10px] bg-[#f8fafc] px-3 py-2">
-                  Журнал действий: данные появятся после подключения audit API.
-                </li>
-              </ul>
+                </p>
+                {auditLoading ? (
+                  <p className="text-text-muted">Загрузка журнала…</p>
+                ) : auditError ? (
+                  <p className="rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 text-red-700">
+                    {auditError}
+                  </p>
+                ) : auditItems.length === 0 ? (
+                  <p className="text-text-muted">Записей в журнале пока нет.</p>
+                ) : (
+                  <ul className="max-h-72 space-y-2 overflow-y-auto">
+                    {auditItems.map((row) => (
+                      <li
+                        key={row.id}
+                        className="rounded-[10px] border border-border bg-[#f8fafc] px-3 py-2"
+                      >
+                        <div className="font-semibold text-text-primary">
+                          {auditActionLabel(row.action)}
+                        </div>
+                        <div className="mt-0.5 text-xs text-text-muted">
+                          {new Date(row.createdAt).toLocaleString("ru-RU")}
+                          {row.actor
+                            ? ` · ${row.actor.fullName}`
+                            : " · система"}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             ) : null}
           </div>
         ) : null}
