@@ -18,14 +18,18 @@ out/
 build/
 dist/
 *.tsbuildinfo
-apps/catalog-service/generated/
-apps/applicant-service/generated/
-apps/exam-service/generated/
-apps/results-service/generated/
+
+# prisma generated clients
+apps/*/generated/
 
 # misc
 .DS_Store
 *.pem
+AGENTS.md
+
+# design previews (generated locally)
+design/**/_preview*.png
+docs/diagrams/_crop*.png
 
 # debug
 npm-debug.log*
@@ -39,9 +43,5 @@ yarn-error.log*
 # vercel
 .vercel
 
-# docker volumes / local data (if ever mounted here)
+# docker volumes / local data
 infra/**/data/
-
-AGENTS.mdapps/notification-service/generated/
-
-AGENTS.md

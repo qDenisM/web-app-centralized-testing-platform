@@ -1,9 +1,9 @@
-import { CabinetShell } from "@/components/layout/CabinetShell";
+import { ExaminerShell } from "@/components/layout/ExaminerShell";
 
 export default function ExaminerLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <CabinetShell title="Экзаменатор">{children}</CabinetShell>;
+  return <ExaminerShell>{children}</ExaminerShell>;
 }

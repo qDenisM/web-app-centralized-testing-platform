@@ -8,12 +8,16 @@ const EnvSchema = z.object({
   NODE_ENV: z.string().default("development"),
   LOG_LEVEL: z.string().default("info"),
   DATABASE_URL: z.string().min(1),
+  EXAM_URL: z.string().url().default("http://localhost:3004"),
   JWKS_URL: z
     .string()
     .url()
     .default("http://localhost:3001/.well-known/jwks.json"),
   JWT_ISSUER: z.string().default("abiturent-identity"),
   JWT_AUDIENCE: z.string().default("abiturent"),
+  RABBITMQ_URL: z
+    .string()
+    .default("amqp://abiturent:abiturent@localhost:5672"),
 });
 
 const parsed = EnvSchema.parse(process.env);
@@ -23,7 +27,9 @@ export const config = {
   nodeEnv: parsed.NODE_ENV,
   logLevel: parsed.LOG_LEVEL,
   databaseUrl: parsed.DATABASE_URL,
+  examUrl: parsed.EXAM_URL.replace(/\/$/, ""),
   jwksUrl: parsed.JWKS_URL,
   jwtIssuer: parsed.JWT_ISSUER,
   jwtAudience: parsed.JWT_AUDIENCE,
+  rabbitmqUrl: parsed.RABBITMQ_URL,
 };

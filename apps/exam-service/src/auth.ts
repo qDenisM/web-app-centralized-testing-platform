@@ -18,3 +18,12 @@ export const requireModerator = [
   }),
   requireRole("moderator", "admin"),
 ];
+
+export const requireExaminer = [
+  authenticate({
+    jwksUrl: config.jwksUrl,
+    issuer: config.jwtIssuer,
+    audience: config.jwtAudience,
+  }),
+  requireRole("examiner", "admin"),
+];
