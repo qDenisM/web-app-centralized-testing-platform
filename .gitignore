@@ -20,6 +20,7 @@ dist/
 *.tsbuildinfo
 apps/catalog-service/generated/
 apps/applicant-service/generated/
+apps/exam-service/generated/
 
 # misc
 .DS_Store
