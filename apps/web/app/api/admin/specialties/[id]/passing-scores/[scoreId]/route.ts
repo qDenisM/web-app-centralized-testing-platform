@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { catalogFetch } from "@/lib/catalog-api";
 
-type Params = { params: Promise<{ specialtyId: string; scoreId: string }> };
+type Params = { params: Promise<{ id: string; scoreId: string }> };
 
 export async function DELETE(_request: Request, { params }: Params) {
-  const { specialtyId, scoreId } = await params;
+  const { id, scoreId } = await params;
   const result = await catalogFetch(
-    `/admin/specialties/${specialtyId}/passing-scores/${scoreId}`,
+    `/admin/specialties/${id}/passing-scores/${scoreId}`,
     { method: "DELETE" },
   );
   if (!result.ok) {
