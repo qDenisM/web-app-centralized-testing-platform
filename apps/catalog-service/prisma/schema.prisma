@@ -1,0 +1,106 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Institution {
+  id          String  @id @default(uuid()) @db.Uuid
+  type        String
+  shortName   String  @map("short_name")
+  fullName    String  @map("full_name")
+  address     String?
+  city        String?
+  isPublished Boolean @default(false) @map("is_published")
+
+  specialties Specialty[]
+
+  @@map("institutions")
+}
+
+model Subject {
+  id        String @id @default(uuid()) @db.Uuid
+  name      String
+  shortCode String @map("short_code")
+  status    String @default("active")
+
+  specialtySubjects SpecialtySubject[]
+
+  @@map("subjects")
+}
+
+model Specialty {
+  id            String  @id @default(uuid()) @db.Uuid
+  institutionId String  @map("institution_id") @db.Uuid
+  okrbCode      String  @map("okrb_code")
+  name          String
+  studyForm     String  @map("study_form")
+  funding       String
+  placesPlan    Int     @map("places_plan")
+  contentMode   String  @map("content_mode")
+  isPublished   Boolean @default(false) @map("is_published")
+
+  institution       Institution        @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  specialtySubjects SpecialtySubject[]
+  passingScores     PassingScore[]
+
+  @@index([institutionId])
+  @@map("specialties")
+}
+
+model SpecialtySubject {
+  id          String @id @default(uuid()) @db.Uuid
+  specialtyId String @map("specialty_id") @db.Uuid
+  subjectId   String @map("subject_id") @db.Uuid
+  slot        Int
+  minScore    Int    @default(0) @map("min_score")
+
+  specialty Specialty @relation(fields: [specialtyId], references: [id], onDelete: Cascade)
+  subject   Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([specialtyId, slot])
+  @@index([specialtyId])
+  @@index([subjectId])
+  @@map("specialty_subjects")
+}
+
+model PassingScore {
+  id          String @id @default(uuid()) @db.Uuid
+  specialtyId String @map("specialty_id") @db.Uuid
+  year        Int
+  score       Int
+  competition Float?
+
+  specialty Specialty @relation(fields: [specialtyId], references: [id], onDelete: Cascade)
+
+  @@unique([specialtyId, year])
+  @@index([specialtyId])
+  @@map("passing_scores")
+}
+
+model Campaign {
+  id       String  @id @default(uuid()) @db.Uuid
+  year     Int     @unique
+  isActive Boolean @default(false) @map("is_active")
+
+  stages CampaignStage[]
+
+  @@map("campaigns")
+}
+
+model CampaignStage {
+  id         String   @id @default(uuid()) @db.Uuid
+  campaignId String   @map("campaign_id") @db.Uuid
+  sortOrder  Int      @map("sort_order")
+  name       String
+  startsOn   DateTime @map("starts_on") @db.Date
+  endsOn     DateTime @map("ends_on") @db.Date
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@map("campaign_stages")
+}
