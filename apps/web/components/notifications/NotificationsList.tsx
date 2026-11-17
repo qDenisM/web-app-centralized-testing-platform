@@ -61,8 +61,8 @@ export function NotificationsList() {
   const unreadCount = items.filter((item) => !item.isRead).length;
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="flex min-h-0 flex-1 flex-col gap-5">
+      <div className="flex shrink-0 flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight text-brand-900">
             Уведомления
@@ -89,11 +89,11 @@ export function NotificationsList() {
           {error}
         </p>
       ) : items.length === 0 ? (
-        <div className="rounded-[14px] border border-border bg-white p-6 text-sm text-text-secondary shadow-[var(--shadow-soft)]">
+        <div className="flex min-h-[280px] flex-1 items-center justify-center rounded-[14px] border border-border bg-white p-6 text-sm text-text-secondary shadow-[var(--shadow-soft)]">
           Пока нет уведомлений.
         </div>
       ) : (
-        <ul className="space-y-3">
+        <ul className="min-h-0 flex-1 space-y-3 overflow-y-auto">
           {items.map((item) => (
             <li key={item.id}>
               <button

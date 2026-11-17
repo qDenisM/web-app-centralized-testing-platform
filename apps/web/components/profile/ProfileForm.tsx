@@ -33,12 +33,9 @@ export function ProfileForm() {
   const [message, setMessage] = useState<string | null>(null);
   const [accountBusy, setAccountBusy] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const [ready, setReady] = useState(false);
 
   const status = profile?.verification?.status || null;
-  const canSubmit =
-    status === "draft" || status === "rejected" || status === "returned";
   const locked = status === "pending" || status === "approved";
 
   useEffect(() => {
@@ -184,56 +181,49 @@ export function ProfileForm() {
     }
   }
 
-  async function onSubmitForReview() {
-    setError(null);
-    setMessage(null);
-    setSubmitting(true);
-
-    try {
-      const res = await fetch("/api/applicant/profile/submit", {
-        method: "POST",
-      });
-      const data = (await res.json().catch(() => ({}))) as ApplicantProfile & {
-        error?: string;
-      };
-      if (!res.ok) {
-        setError(data.error || "Не удалось отправить на проверку");
-        return;
-      }
-      setProfile(data);
-      setMessage("Анкета отправлена на проверку");
-    } catch {
-      setError("Сеть недоступна");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
   if (!ready) {
     return <p className="text-sm text-text-muted">Загрузка профиля…</p>;
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6">
       <div>
         <h1 className="text-2xl font-extrabold tracking-tight text-brand-900">
           Профиль и настройки
         </h1>
         <p className="mt-1 text-sm text-text-secondary">
-          Учётные данные аккаунта и анкета для приёмной кампании.
+          Учётные данные и анкета абитуриента.
           {status ? (
             <>
               {" "}
-              Статус анкеты:{" "}
+              Статус заявки на аттестат:{" "}
               <span className="font-semibold text-brand-800">
                 {verificationStatusLabel(status)}
               </span>
+              .{" "}
+              <Link
+                href="/app/certificate"
+                className="font-bold text-brand-700 hover:underline"
+              >
+                Заявка на аттестат
+              </Link>
             </>
-          ) : null}
+          ) : (
+            <>
+              {" "}
+              <Link
+                href="/app/certificate"
+                className="font-bold text-brand-700 hover:underline"
+              >
+                Заявка на аттестат
+              </Link>
+            </>
+          )}
         </p>
         {profile?.verification?.rejectReason ? (
-          <p className="mt-2 rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            Причина: {profile.verification.rejectReason}
+          <p className="mt-2 whitespace-pre-line rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            Причина:{"\n"}
+            {profile.verification.rejectReason}
           </p>
         ) : null}
       </div>
@@ -314,6 +304,9 @@ export function ProfileForm() {
         <h2 className="text-sm font-extrabold uppercase tracking-wide text-text-muted">
           Данные анкеты
         </h2>
+        <p className="text-sm text-text-secondary">
+          Паспортные данные нужны для отправки заявки на проверку аттестата.
+        </p>
         <Input
           label="Дата рождения"
           name="birthDate"
@@ -343,43 +336,24 @@ export function ProfileForm() {
           />
         </div>
 
-        <div className="rounded-[10px] border border-border bg-[#f4f7f9] px-3 py-2.5 text-sm text-text-secondary">
-          Аттестат:{" "}
-          {profile?.hasAttestatScan ? (
-            <span className="font-semibold text-brand-800">
-              скан загружен
-              {profile.attestatAverage != null
-                ? `, средний балл ${profile.attestatAverage}`
-                : ""}
-            </span>
-          ) : (
-            <span>ещё не загружен</span>
-          )}
-          {" · "}
-          <Link
-            href="/app/certificate"
-            className="font-bold text-brand-700 hover:underline"
-          >
-            открыть аттестат
-          </Link>
-        </div>
-
         <div className="flex flex-wrap gap-3">
           {!locked ? (
             <FormButton disabled={loading} className="w-auto px-5 py-2.5">
               {loading ? "Сохраняем…" : "Сохранить анкету"}
             </FormButton>
-          ) : null}
-          {canSubmit ? (
-            <FormButton
-              type="button"
-              className="w-auto px-5 py-2.5"
-              disabled={submitting}
-              onClick={onSubmitForReview}
-            >
-              {submitting ? "Отправляем…" : "Отправить на проверку"}
-            </FormButton>
-          ) : null}
+          ) : (
+            <p className="text-sm text-text-muted">
+              Пока заявка на проверке или подтверждена, анкету нельзя изменить.
+              Управление заявкой — на странице{" "}
+              <Link
+                href="/app/certificate"
+                className="font-bold text-brand-700 hover:underline"
+              >
+                «Заявка на аттестат»
+              </Link>
+              .
+            </p>
+          )}
         </div>
       </form>
     </div>

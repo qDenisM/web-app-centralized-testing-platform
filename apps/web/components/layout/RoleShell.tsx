@@ -18,7 +18,6 @@ export type RoleNavItem = {
   label: string;
   exact?: boolean;
   icon?: NavIconName;
-  /** Optional section header rendered above this item in the sidebar */
   section?: string;
 };
 
@@ -62,8 +61,8 @@ export function RoleShell({
   const pathname = usePathname();
 
   return (
-    <div className="flex min-h-full min-w-[1024px] flex-col bg-bg-page">
-      <header className="border-b border-border bg-white">
+    <div className="flex min-h-screen min-w-[1024px] flex-col bg-bg-page">
+      <header className="shrink-0 border-b border-border bg-white">
         <div className={cn(shellContainer, "h-16 items-center justify-between gap-3")}>
           <Logo href={homeHref} />
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
@@ -112,7 +111,7 @@ export function RoleShell({
                 return (
                   <div key={item.href}>
                     {item.section ? (
-                      <div className="px-3.5 pb-1.5 pt-4 text-[10px] font-extrabold uppercase tracking-wide text-text-muted">
+                      <div className="px-3.5 pb-1.5 pt-4 text-[12px] font-semibold uppercase tracking-wide text-text-muted">
                         {item.section}
                       </div>
                     ) : null}
@@ -139,7 +138,7 @@ export function RoleShell({
             ) : null}
           </aside>
 
-          <main className="min-w-0 flex-1 overflow-x-auto py-6 md:py-8 md:pl-8">
+          <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-auto py-6 md:py-8 md:pl-8">
             {children}
           </main>
         </div>

@@ -21,3 +21,30 @@ model Notification {
   @@index([userId, isRead])
   @@map("notifications")
 }
+
+/// Singleton row (id = "default") for system-wide notification toggles.
+model NotificationSettings {
+  id                  String   @id @default("default")
+  allEnabled          Boolean  @default(true) @map("all_enabled")
+  verificationEnabled Boolean  @default(true) @map("verification_enabled")
+  applicationEnabled  Boolean  @default(true) @map("application_enabled")
+  resultEnabled       Boolean  @default(true) @map("result_enabled")
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("notification_settings")
+}
+
+/// Per-user preferences (moderator cabinet: notification toggles + work defaults).
+/// Delivery of moderator in-app events should call isUserPrefEnabled before create.
+model NotificationPreferences {
+  userId            String   @id @map("user_id") @db.Uuid
+  allEnabled        Boolean  @default(true) @map("all_enabled")
+  verificationQueue Boolean  @default(true) @map("verification_queue")
+  ctApplications    Boolean  @default(true) @map("ct_applications")
+  decisions         Boolean  @default(true)
+  /// overview | docs | applications | history
+  defaultQueueTab   String   @default("overview") @map("default_queue_tab")
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("notification_preferences")
+}

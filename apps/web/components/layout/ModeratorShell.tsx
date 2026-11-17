@@ -20,8 +20,11 @@ export function ModeratorShell({ children }: ModeratorShellProps) {
     <RoleShell
       navItems={navItems}
       roleName="Модератор"
-      homeHref="/moderator"
-      profileLinks={[{ href: "/moderator", label: "Обзор очереди", icon: "profile" }]}
+      homeHref="/"
+      profileLinks={[
+        { href: "/moderator", label: "Обзор очереди", icon: "profile" },
+        { href: "/moderator/settings", label: "Настройки", icon: "settings" },
+      ]}
       headerBadge={<ActiveCampaignBadge />}
       sidebarFooter={
         <div className="space-y-1">

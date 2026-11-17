@@ -20,7 +20,7 @@ export function ExaminerShell({ children }: ExaminerShellProps) {
     <RoleShell
       navItems={navItems}
       roleName="Экзаменатор"
-      homeHref="/examiner"
+      homeHref="/"
       profileLinks={[{ href: "/examiner", label: "Результаты ЦТ", icon: "profile" }]}
       headerBadge={<ActiveCampaignBadge />}
       sidebarFooter={

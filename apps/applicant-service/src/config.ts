@@ -24,6 +24,7 @@ const EnvSchema = z.object({
     .default("true")
     .transform((v) => v !== "false"),
   UPLOAD_URL_TTL_SEC: z.coerce.number().int().positive().default(600),
+  DOWNLOAD_URL_TTL_SEC: z.coerce.number().int().positive().default(600),
   AI_URL: z.string().url().default("http://localhost:3010"),
   RABBITMQ_URL: z
     .string()
@@ -51,6 +52,7 @@ export const config = {
     forcePathStyle: parsed.MINIO_FORCE_PATH_STYLE,
   },
   uploadUrlTtlSec: parsed.UPLOAD_URL_TTL_SEC,
+  downloadUrlTtlSec: parsed.DOWNLOAD_URL_TTL_SEC,
   aiUrl: parsed.AI_URL,
   rabbitmqUrl: parsed.RABBITMQ_URL,
   identityUrl: parsed.IDENTITY_URL.replace(/\/$/, ""),

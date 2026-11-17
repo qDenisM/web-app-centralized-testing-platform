@@ -14,6 +14,31 @@ export type AppNotification = {
   createdAt: string;
 };
 
+export type NotificationSettings = {
+  allEnabled: boolean;
+  verificationEnabled: boolean;
+  applicationEnabled: boolean;
+  resultEnabled: boolean;
+  updatedAt: string;
+};
+
+export type ModeratorDefaultQueueTab =
+  | "overview"
+  | "docs"
+  | "applications"
+  | "history";
+
+/** Per-user prefs (moderator cabinet). Stored in notification-service. */
+export type NotificationPreferences = {
+  userId: string;
+  allEnabled: boolean;
+  verificationQueue: boolean;
+  ctApplications: boolean;
+  decisions: boolean;
+  defaultQueueTab: ModeratorDefaultQueueTab;
+  updatedAt: string;
+};
+
 export function formatNotificationTime(iso: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";

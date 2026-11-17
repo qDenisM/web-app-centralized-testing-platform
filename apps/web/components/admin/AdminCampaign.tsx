@@ -388,7 +388,7 @@ export function AdminCampaign() {
             setCreateOpen(true);
           }}
         >
-          Новая кампания
+          + Новая кампания
         </FormButton>
       </div>
 

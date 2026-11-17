@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 export type ProfileMenuLink = {
   href: string;
   label: string;
-  icon?: "profile" | "favorites" | "settings";
+  icon?: "profile" | "favorites" | "settings" | "certificate";
 };
 
 type MeUser = {
@@ -57,6 +57,15 @@ function MenuIcon({ kind }: { kind?: ProfileMenuLink["icon"] }) {
     return (
       <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+      </svg>
+    );
+  }
+  if (kind === "certificate") {
+    return (
+      <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <path d="M14 2v6h6" />
+        <path d="M8 13h8M8 17h5" />
       </svg>
     );
   }

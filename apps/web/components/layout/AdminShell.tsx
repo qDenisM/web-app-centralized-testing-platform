@@ -2,7 +2,12 @@
 
 import type { ReactNode } from "react";
 import { ActiveCampaignBadge } from "@/components/layout/ActiveCampaignBadge";
+import {
+  MaintenanceBanner,
+  useSystemSettings,
+} from "@/components/layout/MaintenanceBanner";
 import { RoleShell } from "@/components/layout/RoleShell";
+import { dataModeLabel } from "@/lib/system-settings";
 
 const navItems = [
   { href: "/admin", label: "Обзор", exact: true, icon: "overview" as const },
@@ -23,20 +28,32 @@ type AdminShellProps = {
 };
 
 export function AdminShell({ children }: AdminShellProps) {
+  const system = useSystemSettings();
+  const mode = system?.dataMode ?? "production";
+
   return (
     <RoleShell
       navItems={navItems}
       roleName="Администратор"
-      homeHref="/admin"
-      profileLinks={[{ href: "/admin", label: "Обзор системы", icon: "profile" }]}
+      homeHref="/"
+      profileLinks={[
+        { href: "/admin", label: "Обзор системы", icon: "profile" },
+        { href: "/admin/settings", label: "Настройки", icon: "settings" },
+      ]}
       headerBadge={<ActiveCampaignBadge />}
       sidebarFooter={
         <div className="space-y-1">
           <div className="text-[10px] font-extrabold uppercase tracking-wide text-brand-900">
             Режим данных
           </div>
-          <div className="font-semibold text-text-primary">Продакшн</div>
-          <div className="text-[10px] text-text-muted">Кэш обновлён недавно</div>
+          <div className="font-semibold text-text-primary">
+            {dataModeLabel(mode)}
+          </div>
+          <div className="text-[10px] text-text-muted">
+            {system?.maintenanceMode
+              ? "Режим обслуживания включён"
+              : "Кэш обновлён недавно"}
+          </div>
         </div>
       }
       footer={{
@@ -53,7 +70,10 @@ export function AdminShell({ children }: AdminShellProps) {
         ctaLabel: "Открыть справочники",
       }}
     >
-      {children}
+      <div className="flex min-h-0 flex-1 flex-col">
+        <MaintenanceBanner audience="admin" />
+        <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+      </div>
     </RoleShell>
   );
 }

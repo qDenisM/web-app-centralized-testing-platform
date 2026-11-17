@@ -13,7 +13,16 @@ import {
 
 const MAX_BYTES = 10 * 1024 * 1024;
 
-export function CertificateForm() {
+type CertificateFormProps = {
+  /** Embed inside profile settings without page-level title. */
+  embedded?: boolean;
+  onProfileChange?: (profile: ApplicantProfile) => void;
+};
+
+export function CertificateForm({
+  embedded = false,
+  onProfileChange,
+}: CertificateFormProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [profile, setProfile] = useState<ApplicantProfile | null>(null);
   const [storageKey, setStorageKey] = useState<string | null>(null);
@@ -50,6 +59,7 @@ export function CertificateForm() {
         }
         if (cancelled) return;
         setProfile(data);
+        onProfileChange?.(data);
         // Recognition form stays empty until OCR / manual input.
         setStorageKey(null);
         setFileName(null);
@@ -239,6 +249,7 @@ export function CertificateForm() {
         return;
       }
       setProfile(data);
+      onProfileChange?.(data);
       setLowConfidence([]);
       setSavedOpen(true);
     } catch {
@@ -253,30 +264,51 @@ export function CertificateForm() {
   }
 
   const doubt = (field: string) => lowConfidence.includes(field);
+  const locked =
+    profile?.verification?.status === "pending" ||
+    profile?.verification?.status === "approved";
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-extrabold tracking-tight text-brand-900">
-          Аттестат и распознавание среднего балла
-        </h1>
-        {profile?.attestatAverage != null ? (
-          <p className="mt-2 text-sm font-semibold text-brand-800">
-            Текущий средний балл в профиле: {profile.attestatAverage}
-          </p>
-        ) : null}
-        {profile?.verification?.status ? (
-          <p className="mt-1 text-sm text-text-secondary">
-            Статус анкеты:{" "}
-            <span className="font-semibold text-brand-800">
-              {verificationStatusLabel(profile.verification.status)}
-            </span>
-          </p>
-        ) : null}
-      </div>
+      {!embedded ? (
+        <div>
+          <h1 className="text-2xl font-extrabold tracking-tight text-brand-900">
+            Аттестат и распознавание среднего балла
+          </h1>
+          {profile?.attestatAverage != null ? (
+            <p className="mt-2 text-sm font-semibold text-brand-800">
+              Текущий средний балл в профиле: {profile.attestatAverage}
+            </p>
+          ) : null}
+          {profile?.verification?.status ? (
+            <p className="mt-1 text-sm text-text-secondary">
+              Статус анкеты:{" "}
+              <span className="font-semibold text-brand-800">
+                {verificationStatusLabel(profile.verification.status)}
+              </span>
+            </p>
+          ) : null}
+        </div>
+      ) : profile?.attestatAverage != null ? (
+        <p className="text-sm font-semibold text-brand-800">
+          Текущий средний балл в профиле: {profile.attestatAverage}
+        </p>
+      ) : null}
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-        <section className="rounded-[14px] border border-border bg-white p-5 shadow-[var(--shadow-soft)]">
+      <div
+        className={
+          embedded
+            ? "grid gap-5"
+            : "grid gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]"
+        }
+      >
+        <section
+          className={
+            embedded
+              ? "rounded-[10px] border border-border bg-[#f4f7f9] p-4"
+              : "rounded-[14px] border border-border bg-white p-5 shadow-[var(--shadow-soft)]"
+          }
+        >
           <h2 className="mb-3 text-sm font-bold text-brand-900">
             Фотокопия аттестата
           </h2>
@@ -291,14 +323,15 @@ export function CertificateForm() {
 
           <button
             type="button"
-            disabled={uploading || ocrLoading}
+            disabled={locked || uploading || ocrLoading}
             onClick={() => inputRef.current?.click()}
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => {
               e.preventDefault();
+              if (locked) return;
               onFileChange(e.dataTransfer.files);
             }}
-            className="flex min-h-[260px] w-full flex-col items-center justify-center rounded-[10px] border-2 border-dashed border-border bg-[#f4f7f9] px-6 py-8 text-center transition-colors hover:border-brand-500 disabled:opacity-70"
+            className="flex min-h-[220px] w-full flex-col items-center justify-center rounded-[10px] border-2 border-dashed border-border bg-[#f4f7f9] px-6 py-8 text-center transition-colors hover:border-brand-500 disabled:opacity-70"
           >
             {uploading || ocrLoading ? (
               <span className="text-sm font-semibold text-brand-900">
@@ -334,7 +367,13 @@ export function CertificateForm() {
           </button>
         </section>
 
-        <section className="rounded-[14px] border border-border bg-white p-5 shadow-[var(--shadow-soft)]">
+        <section
+          className={
+            embedded
+              ? "rounded-[10px] border border-border bg-[#f4f7f9] p-4"
+              : "rounded-[14px] border border-border bg-white p-5 shadow-[var(--shadow-soft)]"
+          }
+        >
           <div className="mb-4 flex items-start justify-between gap-3 border-b border-border pb-3">
             <div>
               <h2 className="text-sm font-bold text-brand-900">
@@ -365,6 +404,7 @@ export function CertificateForm() {
               onChange={(e) => setGraduateName(e.target.value)}
               placeholder="Иванов Иван Иванович"
               doubt={doubt("graduateName")}
+              disabled={locked}
             />
 
             <Input
@@ -374,6 +414,7 @@ export function CertificateForm() {
               onChange={(e) => setSchoolName(e.target.value)}
               placeholder='ГУО/ "Гимназия № 1 г. Минска"'
               doubt={doubt("schoolName")}
+              disabled={locked}
             />
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -397,6 +438,7 @@ export function CertificateForm() {
                 placeholder="9.0"
                 error={fieldErrors.attestatAverage}
                 doubt={doubt("attestatAverage")}
+                disabled={locked}
               />
               <Input
                 label="Дата выдачи"
@@ -405,6 +447,7 @@ export function CertificateForm() {
                 value={attestatIssuedOn}
                 onChange={(e) => setAttestatIssuedOn(e.target.value)}
                 doubt={doubt("attestatIssuedOn")}
+                disabled={locked}
               />
             </div>
 
@@ -433,22 +476,29 @@ export function CertificateForm() {
               </p>
             ) : null}
 
-            <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border pt-3">
-              <FormButton
-                type="button"
-                variant="secondary"
-                className="w-auto px-4 py-2"
-                onClick={clearFields}
-              >
-                Очистить поля
-              </FormButton>
-              <FormButton
-                className="w-auto px-4 py-2"
-                disabled={saving || uploading || ocrLoading}
-              >
-                {saving ? "Сохраняем…" : "Подтвердить"}
-              </FormButton>
-            </div>
+            {!locked ? (
+              <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border pt-3">
+                <FormButton
+                  type="button"
+                  variant="secondary"
+                  className="w-auto px-4 py-2"
+                  onClick={clearFields}
+                >
+                  Очистить поля
+                </FormButton>
+                <FormButton
+                  className="w-auto px-4 py-2"
+                  disabled={saving || uploading || ocrLoading}
+                >
+                  {saving ? "Сохраняем…" : "Подтвердить"}
+                </FormButton>
+              </div>
+            ) : (
+              <p className="border-t border-border pt-3 text-sm text-text-muted">
+                Пока заявка на проверке или уже подтверждена, аттестат нельзя
+                изменить.
+              </p>
+            )}
           </form>
         </section>
       </div>
@@ -469,8 +519,11 @@ export function CertificateForm() {
         }
       >
         <p className="text-sm leading-relaxed text-text-secondary">
-          Данные аттестата сохранены. Средний балл записан в ваш конкурсный
-          профиль.
+          {profile?.verification?.status === "pending"
+            ? "Данные аттестата сохранены и заявка отправлена на проверку модератору."
+            : embedded
+              ? "Данные аттестата сохранены. Заполните паспортные данные выше и нажмите «Отправить на проверку»."
+              : "Данные аттестата сохранены. Если паспортные данные уже заполнены в настройках — нажмите «Отправить на проверку» ниже (или подтвердите скан ещё раз после заполнения анкеты)."}
         </p>
       </Modal>
     </div>

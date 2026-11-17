@@ -8,6 +8,7 @@ import {
 } from "@abiturent/contracts";
 import { consumeEvents, type RabbitClient } from "@abiturent/service-kit";
 import { prisma } from "./db.js";
+import { isKindEnabled } from "./settings.js";
 
 function textForDecision(
   decision: VerificationDecidedEvent["decision"],
@@ -75,6 +76,7 @@ export async function startNotificationConsumers(
     routingKey: EVENT_VERIFICATION_DECIDED,
     onMessage: async (payload) => {
       if (!isVerificationDecided(payload)) return;
+      if (!(await isKindEnabled("verification"))) return;
 
       const text = textForDecision(payload.decision, payload.reason);
       await prisma.notification.create({
@@ -93,6 +95,7 @@ export async function startNotificationConsumers(
     routingKey: EVENT_APPLICATION_APPROVED,
     onMessage: async (payload) => {
       if (!isApplicationApproved(payload)) return;
+      if (!(await isKindEnabled("application"))) return;
 
       const passLine = payload.passNumber
         ? ` Номер пропуска: ${payload.passNumber}.`
@@ -113,6 +116,7 @@ export async function startNotificationConsumers(
     routingKey: EVENT_RESULT_PUBLISHED,
     onMessage: async (payload) => {
       if (!isResultPublished(payload)) return;
+      if (!(await isKindEnabled("result"))) return;
 
       await prisma.notification.create({
         data: {

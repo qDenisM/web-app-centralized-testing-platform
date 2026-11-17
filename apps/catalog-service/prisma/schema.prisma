@@ -109,3 +109,16 @@ model CampaignStage {
   @@index([campaignId])
   @@map("campaign_stages")
 }
+
+/// Singleton platform settings for admin (id = "default").
+model SystemSettings {
+  id                  String   @id @default("default")
+  dataMode            String   @default("production") @map("data_mode")
+  registrationOpen    Boolean  @default(true) @map("registration_open")
+  ctApplicationsOpen  Boolean  @default(true) @map("ct_applications_open")
+  ocrEnabled          Boolean  @default(true) @map("ocr_enabled")
+  maintenanceMode     Boolean  @default(false) @map("maintenance_mode")
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("system_settings")
+}

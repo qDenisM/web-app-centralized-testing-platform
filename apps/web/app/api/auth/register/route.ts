@@ -5,6 +5,10 @@ import {
   setAuthCookies,
   type LoginPayload,
 } from "@/lib/auth";
+import {
+  canRegister,
+  getSystemSettings,
+} from "@/lib/system-settings-guard";
 
 export async function POST(request: Request) {
   let body: { email?: string; password?: string; fullName?: string };
@@ -27,6 +31,18 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "Укажите ФИО, email и пароль" },
       { status: 400 },
+    );
+  }
+
+  const system = await getSystemSettings();
+  if (!canRegister(system)) {
+    return NextResponse.json(
+      {
+        error: system?.maintenanceMode
+          ? "Регистрация недоступна: ведутся технические работы"
+          : "Регистрация временно закрыта администратором",
+      },
+      { status: 403 },
     );
   }
 

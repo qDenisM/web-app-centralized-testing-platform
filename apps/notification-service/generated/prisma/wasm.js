@@ -103,6 +103,25 @@ exports.Prisma.NotificationScalarFieldEnum = {
   createdAt: 'createdAt'
 };
 
+exports.Prisma.NotificationSettingsScalarFieldEnum = {
+  id: 'id',
+  allEnabled: 'allEnabled',
+  verificationEnabled: 'verificationEnabled',
+  applicationEnabled: 'applicationEnabled',
+  resultEnabled: 'resultEnabled',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.NotificationPreferencesScalarFieldEnum = {
+  userId: 'userId',
+  allEnabled: 'allEnabled',
+  verificationQueue: 'verificationQueue',
+  ctApplications: 'ctApplications',
+  decisions: 'decisions',
+  defaultQueueTab: 'defaultQueueTab',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -115,7 +134,9 @@ exports.Prisma.QueryMode = {
 
 
 exports.Prisma.ModelName = {
-  Notification: 'Notification'
+  Notification: 'Notification',
+  NotificationSettings: 'NotificationSettings',
+  NotificationPreferences: 'NotificationPreferences'
 };
 /**
  * Create the Client
@@ -165,13 +186,13 @@ const config = {
       }
     }
   },
-  "inlineSchema": "generator client {\n  provider = \"prisma-client-js\"\n  output   = \"../generated/prisma\"\n}\n\ndatasource db {\n  provider = \"postgresql\"\n  url      = env(\"DATABASE_URL\")\n}\n\nmodel Notification {\n  id        String   @id @default(uuid()) @db.Uuid\n  userId    String   @map(\"user_id\") @db.Uuid\n  channel   String   @default(\"in_app\")\n  title     String\n  body      String\n  isRead    Boolean  @default(false) @map(\"is_read\")\n  createdAt DateTime @default(now()) @map(\"created_at\") @db.Timestamptz(6)\n\n  @@index([userId])\n  @@index([userId, isRead])\n  @@map(\"notifications\")\n}\n",
-  "inlineSchemaHash": "63ca4bdb279d780897a2462705d77ad8cf7be8263abd86dbbfcfa21c9cf8edd9",
+  "inlineSchema": "generator client {\n  provider = \"prisma-client-js\"\n  output   = \"../generated/prisma\"\n}\n\ndatasource db {\n  provider = \"postgresql\"\n  url      = env(\"DATABASE_URL\")\n}\n\nmodel Notification {\n  id        String   @id @default(uuid()) @db.Uuid\n  userId    String   @map(\"user_id\") @db.Uuid\n  channel   String   @default(\"in_app\")\n  title     String\n  body      String\n  isRead    Boolean  @default(false) @map(\"is_read\")\n  createdAt DateTime @default(now()) @map(\"created_at\") @db.Timestamptz(6)\n\n  @@index([userId])\n  @@index([userId, isRead])\n  @@map(\"notifications\")\n}\n\n/// Singleton row (id = \"default\") for system-wide notification toggles.\nmodel NotificationSettings {\n  id                  String   @id @default(\"default\")\n  allEnabled          Boolean  @default(true) @map(\"all_enabled\")\n  verificationEnabled Boolean  @default(true) @map(\"verification_enabled\")\n  applicationEnabled  Boolean  @default(true) @map(\"application_enabled\")\n  resultEnabled       Boolean  @default(true) @map(\"result_enabled\")\n  updatedAt           DateTime @updatedAt @map(\"updated_at\") @db.Timestamptz(6)\n\n  @@map(\"notification_settings\")\n}\n\n/// Per-user preferences (moderator cabinet: notification toggles + work defaults).\n/// Delivery of moderator in-app events should call isUserPrefEnabled before create.\nmodel NotificationPreferences {\n  userId            String   @id @map(\"user_id\") @db.Uuid\n  allEnabled        Boolean  @default(true) @map(\"all_enabled\")\n  verificationQueue Boolean  @default(true) @map(\"verification_queue\")\n  ctApplications    Boolean  @default(true) @map(\"ct_applications\")\n  decisions         Boolean  @default(true)\n  /// overview | docs | applications | history\n  defaultQueueTab   String   @default(\"overview\") @map(\"default_queue_tab\")\n  updatedAt         DateTime @updatedAt @map(\"updated_at\") @db.Timestamptz(6)\n\n  @@map(\"notification_preferences\")\n}\n",
+  "inlineSchemaHash": "6db7c338bf9bdb78f860a082f77a6c85b2a175eb24cc0fbef23cc4bfa2423295",
   "copyEngine": true
 }
 config.dirname = '/'
 
-config.runtimeDataModel = JSON.parse("{\"models\":{\"Notification\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"userId\",\"kind\":\"scalar\",\"type\":\"String\",\"dbName\":\"user_id\"},{\"name\":\"channel\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"title\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"body\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"isRead\",\"kind\":\"scalar\",\"type\":\"Boolean\",\"dbName\":\"is_read\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\",\"dbName\":\"created_at\"}],\"dbName\":\"notifications\"}},\"enums\":{},\"types\":{}}")
+config.runtimeDataModel = JSON.parse("{\"models\":{\"Notification\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"userId\",\"kind\":\"scalar\",\"type\":\"String\",\"dbName\":\"user_id\"},{\"name\":\"channel\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"title\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"body\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"isRead\",\"kind\":\"scalar\",\"type\":\"Boolean\",\"dbName\":\"is_read\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\",\"dbName\":\"created_at\"}],\"dbName\":\"notifications\"},\"NotificationSettings\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"allEnabled\",\"kind\":\"scalar\",\"type\":\"Boolean\",\"dbName\":\"all_enabled\"},{\"name\":\"verificationEnabled\",\"kind\":\"scalar\",\"type\":\"Boolean\",\"dbName\":\"verification_enabled\"},{\"name\":\"applicationEnabled\",\"kind\":\"scalar\",\"type\":\"Boolean\",\"dbName\":\"application_enabled\"},{\"name\":\"resultEnabled\",\"kind\":\"scalar\",\"type\":\"Boolean\",\"dbName\":\"result_enabled\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\",\"dbName\":\"updated_at\"}],\"dbName\":\"notification_settings\"},\"NotificationPreferences\":{\"fields\":[{\"name\":\"userId\",\"kind\":\"scalar\",\"type\":\"String\",\"dbName\":\"user_id\"},{\"name\":\"allEnabled\",\"kind\":\"scalar\",\"type\":\"Boolean\",\"dbName\":\"all_enabled\"},{\"name\":\"verificationQueue\",\"kind\":\"scalar\",\"type\":\"Boolean\",\"dbName\":\"verification_queue\"},{\"name\":\"ctApplications\",\"kind\":\"scalar\",\"type\":\"Boolean\",\"dbName\":\"ct_applications\"},{\"name\":\"decisions\",\"kind\":\"scalar\",\"type\":\"Boolean\"},{\"name\":\"defaultQueueTab\",\"kind\":\"scalar\",\"type\":\"String\",\"dbName\":\"default_queue_tab\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\",\"dbName\":\"updated_at\"}],\"dbName\":\"notification_preferences\"}},\"enums\":{},\"types\":{}}")
 defineDmmfProperty(exports.Prisma, config.runtimeDataModel)
 config.engineWasm = {
   getRuntime: async () => require('./query_engine_bg.js'),

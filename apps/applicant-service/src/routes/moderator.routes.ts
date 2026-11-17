@@ -6,6 +6,7 @@ import { requireModerator } from "../auth.js";
 import { prisma } from "../db.js";
 import { publishVerificationDecided } from "../notify.js";
 import { verificationQueueJson } from "../serializers.js";
+import { createAttestatDownloadUrl } from "../storage.js";
 
 export const moderatorRoutes = Router();
 
@@ -108,7 +109,58 @@ moderatorRoutes.get(
         });
       }
 
-      res.status(200).json(verificationQueueJson(row));
+      const payload = verificationQueueJson(row);
+      let attestatScanUrl: string | null = null;
+      if (row.profile.storageKey) {
+        const link = await createAttestatDownloadUrl(row.profile.storageKey);
+        attestatScanUrl = link.downloadUrl;
+      }
+
+      res.status(200).json({ ...payload, attestatScanUrl });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+moderatorRoutes.post(
+  "/moderator/verifications/:id/unlock",
+  ...requireModerator,
+  async (req, res, next) => {
+    try {
+      const moderatorId = req.user?.sub;
+      if (!moderatorId) throw AppError.unauthorized();
+
+      const id = String(req.params.id);
+      const row = await prisma.verification.findUnique({
+        where: { id },
+        include: { profile: true },
+      });
+      if (!row) {
+        throw AppError.notFound("Verification not found");
+      }
+
+      if (row.status !== "pending") {
+        res.status(200).json(verificationQueueJson(row));
+        return;
+      }
+
+      if (!row.lockedBy) {
+        res.status(200).json(verificationQueueJson(row));
+        return;
+      }
+
+      if (row.lockedBy !== moderatorId) {
+        throw AppError.forbidden("Заявку проверяет другой модератор");
+      }
+
+      const updated = await prisma.verification.update({
+        where: { id },
+        data: { lockedBy: null },
+        include: { profile: true },
+      });
+
+      res.status(200).json(verificationQueueJson(updated));
     } catch (err) {
       next(err);
     }

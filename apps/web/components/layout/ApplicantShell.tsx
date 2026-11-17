@@ -2,12 +2,12 @@
 
 import type { ReactNode } from "react";
 import { CompetitiveScoreBadge } from "@/components/layout/CompetitiveScoreBadge";
+import { MaintenanceBanner } from "@/components/layout/MaintenanceBanner";
 import { RoleShell } from "@/components/layout/RoleShell";
 
 const navItems = [
   { href: "/app", label: "Главная", exact: true, icon: "home" as const },
   { href: "/app/ct", label: "Мои ЦТ", icon: "ct" as const },
-  { href: "/app/certificate", label: "Аттестат", icon: "certificate" as const },
   { href: "/app/universities", label: "Университеты", icon: "universities" as const },
 ];
 
@@ -20,13 +20,18 @@ export function ApplicantShell({ children }: ApplicantShellProps) {
     <RoleShell
       navItems={navItems}
       roleName="Абитуриент"
-      homeHref="/app"
+      homeHref="/"
       headerBadge={<CompetitiveScoreBadge />}
       profileLinks={[
         {
           href: "/app/favorites",
           label: "Избранные специальности",
           icon: "favorites",
+        },
+        {
+          href: "/app/certificate",
+          label: "Заявка на аттестат",
+          icon: "certificate",
         },
         {
           href: "/app/profile",
@@ -39,7 +44,6 @@ export function ApplicantShell({ children }: ApplicantShellProps) {
         roleLinks: [
           { href: "/app", label: "Сводка" },
           { href: "/app/ct", label: "Мои ЦТ" },
-          { href: "/app/certificate", label: "Аттестат" },
           { href: "/app/universities", label: "Университеты" },
           { href: "/app/profile", label: "Настройки" },
           { href: "/app/notifications", label: "Уведомления" },
@@ -50,7 +54,10 @@ export function ApplicantShell({ children }: ApplicantShellProps) {
         ctaLabel: "Оценить шансы",
       }}
     >
-      {children}
+      <div className="flex min-h-0 flex-1 flex-col">
+        <MaintenanceBanner audience="applicant" />
+        <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+      </div>
     </RoleShell>
   );
 }

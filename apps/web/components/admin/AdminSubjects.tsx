@@ -169,7 +169,7 @@ export function AdminSubjects() {
           </p>
         </div>
         <FormButton type="button" className="w-auto px-4 py-2.5" onClick={openCreate}>
-          + Предмет
+          + Добавить предмет
         </FormButton>
       </div>
 

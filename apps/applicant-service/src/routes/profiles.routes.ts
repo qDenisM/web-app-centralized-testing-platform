@@ -65,6 +65,72 @@ async function getOrCreateProfile(userId: string) {
   });
 }
 
+type ProfileWithLatestVerification = Awaited<
+  ReturnType<typeof getOrCreateProfile>
+>;
+
+function assertProfileReadyForSubmit(profile: ProfileWithLatestVerification) {
+  if (!profile.birthDate || !profile.passportSeries || !profile.passportNumber) {
+    throw AppError.badRequest("Заполните паспортные данные в анкете");
+  }
+  if (!profile.storageKey) {
+    throw AppError.badRequest("Загрузите скан аттестата");
+  }
+  if (profile.attestatAverage == null) {
+    throw AppError.badRequest("Укажите средний балл аттестата");
+  }
+}
+
+function isProfileCompleteForSubmit(profile: ProfileWithLatestVerification) {
+  return Boolean(
+    profile.birthDate &&
+      profile.passportSeries &&
+      profile.passportNumber &&
+      profile.storageKey &&
+      profile.attestatAverage != null,
+  );
+}
+
+/** draft / returned / rejected → pending so the item appears in moderator queue. */
+async function markVerificationPending(
+  profile: ProfileWithLatestVerification,
+  actorId: string,
+) {
+  const latest = profile.verifications[0];
+  if (!latest) {
+    throw AppError.badRequest("Нет записи проверки");
+  }
+  if (latest.status === "pending") {
+    throw AppError.conflict("Анкета уже на проверке");
+  }
+  if (latest.status === "approved") {
+    throw AppError.conflict("Анкета уже подтверждена");
+  }
+
+  await prisma.verification.update({
+    where: { id: latest.id },
+    data: {
+      status: "pending",
+      submittedAt: new Date(),
+      rejectReason: null,
+      decidedAt: null,
+      lockedBy: null,
+    },
+  });
+
+  reportAudit({
+    actorId,
+    targetId: actorId,
+    action: "verification_submit",
+    payload: { verificationId: latest.id },
+  });
+
+  return prisma.applicantProfile.findUnique({
+    where: { id: profile.id },
+    include: profileInclude,
+  });
+}
+
 profilesRoutes.get(
   "/profile/me",
   ...requireApplicant,
@@ -177,7 +243,7 @@ profilesRoutes.post(
 
       await getOrCreateProfile(userId);
 
-      const profile = await prisma.applicantProfile.update({
+      let profile = await prisma.applicantProfile.update({
         where: { userId },
         data: {
           storageKey: body.storageKey,
@@ -210,6 +276,21 @@ profilesRoutes.post(
           attestatAverage: body.attestatAverage ?? null,
         },
       });
+
+      // When passport + attestat are complete, confirming the scan is the
+      // "отправка на проверку" step — otherwise status stays draft and the
+      // moderator queue never sees the item (submittedAt remains null).
+      const latest = profile.verifications[0];
+      if (
+        isProfileCompleteForSubmit(profile) &&
+        latest &&
+        (latest.status === "draft" ||
+          latest.status === "returned" ||
+          latest.status === "rejected")
+      ) {
+        const submitted = await markVerificationPending(profile, userId);
+        if (submitted) profile = submitted;
+      }
 
       res.status(200).json(profileJson(profile));
     } catch (err) {
@@ -279,37 +360,48 @@ profilesRoutes.post(
       if (!userId) throw AppError.unauthorized();
 
       const profile = await getOrCreateProfile(userId);
+      assertProfileReadyForSubmit(profile);
+      const updated = await markVerificationPending(profile, userId);
+
+      res.status(200).json(profileJson(updated!));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+profilesRoutes.post(
+  "/profile/me/withdraw",
+  ...requireApplicant,
+  async (req, res, next) => {
+    try {
+      const userId = req.user?.sub;
+      if (!userId) throw AppError.unauthorized();
+
+      const profile = await getOrCreateProfile(userId);
       const latest = profile.verifications[0];
-
-      if (!profile.birthDate || !profile.passportSeries || !profile.passportNumber) {
-        throw AppError.badRequest("Заполните паспортные данные в анкете");
-      }
-
-      if (!profile.storageKey) {
-        throw AppError.badRequest("Загрузите скан аттестата");
-      }
-
-      if (profile.attestatAverage == null) {
-        throw AppError.badRequest("Укажите средний балл аттестата");
-      }
 
       if (!latest) {
         throw AppError.badRequest("Нет записи проверки");
       }
 
-      if (latest.status === "pending") {
-        throw AppError.conflict("Анкета уже на проверке");
+      if (latest.status !== "pending") {
+        throw AppError.badRequest(
+          "Удалить можно только заявку, которая ещё на проверке",
+        );
       }
 
-      if (latest.status === "approved") {
-        throw AppError.conflict("Анкета уже подтверждена");
+      if (latest.lockedBy) {
+        throw AppError.conflict(
+          "Заявку уже взял модератор — удаление недоступно",
+        );
       }
 
       await prisma.verification.update({
         where: { id: latest.id },
         data: {
-          status: "pending",
-          submittedAt: new Date(),
+          status: "draft",
+          submittedAt: null,
           rejectReason: null,
           decidedAt: null,
           lockedBy: null,
@@ -324,7 +416,7 @@ profilesRoutes.post(
       reportAudit({
         actorId: userId,
         targetId: userId,
-        action: "verification_submit",
+        action: "verification_withdraw",
         payload: { verificationId: latest.id },
       });
 

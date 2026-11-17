@@ -1,5 +1,6 @@
 import {
   CreateBucketCommand,
+  GetObjectCommand,
   HeadBucketCommand,
   PutBucketCorsCommand,
   PutObjectCommand,
@@ -72,4 +73,17 @@ export async function createPresignedUpload(options: {
     storageKey: options.storageKey,
     expiresIn: config.uploadUrlTtlSec,
   };
+}
+
+export async function createAttestatDownloadUrl(
+  storageKey: string,
+): Promise<{ downloadUrl: string; expiresIn: number }> {
+  const command = new GetObjectCommand({
+    Bucket: config.minio.documentsBucket,
+    Key: storageKey,
+  });
+  const downloadUrl = await getSignedUrl(s3, command, {
+    expiresIn: config.downloadUrlTtlSec,
+  });
+  return { downloadUrl, expiresIn: config.downloadUrlTtlSec };
 }

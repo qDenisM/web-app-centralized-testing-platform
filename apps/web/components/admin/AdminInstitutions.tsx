@@ -208,7 +208,7 @@ export function AdminInstitutions() {
           </p>
         </div>
         <FormButton type="button" className="w-auto px-4 py-2.5" onClick={openCreate}>
-          Добавить заведение
+          + Добавить заведение
         </FormButton>
       </div>
 

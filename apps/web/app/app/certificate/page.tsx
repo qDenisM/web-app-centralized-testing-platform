@@ -1,5 +1,5 @@
-import { CertificateForm } from "@/components/certificate/CertificateForm";
+import { CertificateApplication } from "@/components/certificate/CertificateApplication";
 
 export default function CertificatePage() {
-  return <CertificateForm />;
+  return <CertificateApplication />;
 }

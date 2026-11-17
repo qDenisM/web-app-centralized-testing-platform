@@ -131,6 +131,25 @@ exports.Prisma.NotificationScalarFieldEnum = {
   createdAt: 'createdAt'
 };
 
+exports.Prisma.NotificationSettingsScalarFieldEnum = {
+  id: 'id',
+  allEnabled: 'allEnabled',
+  verificationEnabled: 'verificationEnabled',
+  applicationEnabled: 'applicationEnabled',
+  resultEnabled: 'resultEnabled',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.NotificationPreferencesScalarFieldEnum = {
+  userId: 'userId',
+  allEnabled: 'allEnabled',
+  verificationQueue: 'verificationQueue',
+  ctApplications: 'ctApplications',
+  decisions: 'decisions',
+  defaultQueueTab: 'defaultQueueTab',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -143,7 +162,9 @@ exports.Prisma.QueryMode = {
 
 
 exports.Prisma.ModelName = {
-  Notification: 'Notification'
+  Notification: 'Notification',
+  NotificationSettings: 'NotificationSettings',
+  NotificationPreferences: 'NotificationPreferences'
 };
 
 /**
