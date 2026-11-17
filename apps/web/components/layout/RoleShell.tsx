@@ -92,7 +92,7 @@ export function RoleShell({
 
       <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden">
         <header className="border-b border-border bg-white">
-          <div className="flex h-16 items-center justify-between gap-3 px-6 md:px-8 lg:px-10">
+          <div className="mx-auto flex h-16 w-full max-w-[1280px] items-center justify-between gap-3 px-4 md:px-8">
             <div className="text-sm font-semibold text-text-muted">{roleName}</div>
             <div className="ml-auto flex items-center gap-2 sm:gap-3">
               {headerBadge}
@@ -101,7 +101,7 @@ export function RoleShell({
             </div>
           </div>
           {showMobileNav ? (
-            <nav className="flex gap-1 overflow-x-auto border-t border-border px-4 py-2 lg:hidden">
+            <nav className="mx-auto flex w-full max-w-[1280px] gap-1 overflow-x-auto border-t border-border px-4 py-2 md:px-8 lg:hidden">
               {navItems.map((item) => {
                 const active = isActive(pathname, item);
                 return (
@@ -125,7 +125,7 @@ export function RoleShell({
         </header>
 
         <main className="min-w-0 flex-1 overflow-x-auto">
-          <div className="w-full px-6 py-6 md:px-8 md:py-8 lg:px-10">
+          <div className="mx-auto w-full max-w-[1280px] px-4 py-6 md:px-8 md:py-8">
             {children}
           </div>
         </main>
