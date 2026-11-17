@@ -44,6 +44,9 @@ function isActive(pathname: string, item: RoleNavItem) {
   return pathname === item.href || pathname.startsWith(`${item.href}/`);
 }
 
+const shellContainer =
+  "mx-auto flex w-full max-w-[1280px] px-4 md:px-8";
+
 export function RoleShell({
   children,
   navItems,
@@ -60,13 +63,8 @@ export function RoleShell({
   return (
     <div className="flex min-h-full min-w-[1024px] flex-col bg-bg-page">
       <header className="border-b border-border bg-white">
-        <div className="mx-auto flex h-16 w-full max-w-[1280px] items-center justify-between gap-3 px-4 md:px-8">
-          <div className="flex min-w-0 items-center gap-4">
-            <Logo href={homeHref} />
-            <span className="hidden text-sm font-semibold text-text-muted sm:inline">
-              {roleName}
-            </span>
-          </div>
+        <div className={cn(shellContainer, "h-16 items-center justify-between gap-3")}>
+          <Logo href={homeHref} />
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
             {headerBadge}
             <NotificationsBell />
@@ -74,7 +72,12 @@ export function RoleShell({
           </div>
         </div>
         {showMobileNav ? (
-          <nav className="mx-auto flex w-full max-w-[1280px] gap-1 overflow-x-auto border-t border-border px-4 py-2 md:px-8 lg:hidden">
+          <nav
+            className={cn(
+              shellContainer,
+              "gap-1 overflow-x-auto border-t border-border py-2 lg:hidden",
+            )}
+          >
             {navItems.map((item) => {
               const active = isActive(pathname, item);
               return (
@@ -100,39 +103,39 @@ export function RoleShell({
       </header>
 
       <div className="flex min-h-0 flex-1">
-        <aside className="hidden w-[240px] shrink-0 flex-col border-r border-border bg-white lg:flex">
-          <nav className="flex flex-1 flex-col gap-1 p-3">
-            {navItems.map((item) => {
-              const active = isActive(pathname, item);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-2.5 rounded-[10px] px-3.5 py-2.5 text-sm font-semibold transition-colors",
-                    active
-                      ? "bg-brand-100 text-brand-900"
-                      : "text-text-secondary hover:bg-[#f4f7f9] hover:text-text-primary",
-                  )}
-                >
-                  {item.icon ? <NavIcon name={item.icon} /> : null}
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-          {sidebarFooter ? (
-            <div className="border-t border-border p-4 text-xs text-text-muted">
-              {sidebarFooter}
-            </div>
-          ) : null}
-        </aside>
+        <div className={cn(shellContainer, "min-h-0 flex-1 gap-0")}>
+          <aside className="hidden w-[240px] shrink-0 flex-col border-r border-border bg-white lg:flex">
+            <nav className="flex flex-1 flex-col gap-1 p-3">
+              {navItems.map((item) => {
+                const active = isActive(pathname, item);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      "flex items-center gap-2.5 rounded-[10px] px-3.5 py-2.5 text-sm font-semibold transition-colors",
+                      active
+                        ? "bg-brand-100 text-brand-900"
+                        : "text-text-secondary hover:bg-[#f4f7f9] hover:text-text-primary",
+                    )}
+                  >
+                    {item.icon ? <NavIcon name={item.icon} /> : null}
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
+            {sidebarFooter ? (
+              <div className="border-t border-border p-4 text-xs text-text-muted">
+                {sidebarFooter}
+              </div>
+            ) : null}
+          </aside>
 
-        <main className="min-w-0 flex-1 overflow-x-auto">
-          <div className="mx-auto w-full max-w-[1280px] px-4 py-6 md:px-8 md:py-8">
+          <main className="min-w-0 flex-1 overflow-x-auto py-6 md:py-8 md:pl-8">
             {children}
-          </div>
-        </main>
+          </main>
+        </div>
       </div>
 
       <CabinetFooter {...footer} />
