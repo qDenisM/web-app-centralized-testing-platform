@@ -9,12 +9,9 @@ import {
   type CatalogSpecialty,
   type CatalogSubject,
 } from "@/lib/catalog";
-import type { ChanceResult, Favorite } from "@/lib/chances";
-import {
-  catalogChanceLabel,
-  chanceDotClasses,
-  chanceStatusClasses,
-} from "@/lib/chances-display";
+import type { ChanceResult, ChanceStatus, Favorite } from "@/lib/chances";
+import { catalogChanceLabel } from "@/lib/chances-display";
+import { cn } from "@/lib/utils";
 
 type UniversitiesCatalogProps = {
   specialties: CatalogSpecialty[];
@@ -35,6 +32,9 @@ const emptyFilters = {
   chance: "" as ChanceFilter,
 };
 
+const fieldClass =
+  "w-full rounded-[10px] border border-border bg-white px-3 py-2.5 text-sm text-text-primary outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100";
+
 export function UniversitiesCatalog({
   specialties,
   subjects,
@@ -47,6 +47,7 @@ export function UniversitiesCatalog({
   const [chancesError, setChancesError] = useState<string | null>(null);
   const [busySpecialtyId, setBusySpecialtyId] = useState<string | null>(null);
   const [calcBusy, setCalcBusy] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const favoriteIds = useMemo(
     () => new Set(favorites.map((f) => f.specialtyId)),
@@ -55,9 +56,7 @@ export function UniversitiesCatalog({
 
   const chanceBySpecialty = useMemo(() => {
     const map = new Map<string, ChanceResult>();
-    for (const row of chances) {
-      map.set(row.specialtyId, row);
-    }
+    for (const row of chances) map.set(row.specialtyId, row);
     return map;
   }, [chances]);
 
@@ -210,24 +209,20 @@ export function UniversitiesCatalog({
         const hay = `${institution.shortName} ${institution.fullName}`.toLowerCase();
         if (!hay.includes(universityQ)) return false;
       }
-
       if (specialtyQ) {
         const hay = `${item.name} ${item.okrbCode}`.toLowerCase();
         if (!hay.includes(specialtyQ)) return false;
       }
-
       if (filters.city && institution.city !== filters.city) return false;
       if (filters.funding && item.funding !== filters.funding) return false;
       if (filters.studyForm && item.studyForm !== filters.studyForm) return false;
       if (filters.type && institution.type !== filters.type) return false;
-
       if (filters.subjectIds.length > 0) {
         const ids = new Set((item.subjects || []).map((s) => s.subjectId));
         for (const id of filters.subjectIds) {
           if (!ids.has(id)) return false;
         }
       }
-
       if (filters.chance) {
         const chance = chanceBySpecialty.get(item.id);
         if (filters.chance === "none") {
@@ -236,14 +231,11 @@ export function UniversitiesCatalog({
           return false;
         }
       }
-
       return true;
     });
 
     rows = [...rows].sort((a, b) => {
-      if (sort === "name") {
-        return a.name.localeCompare(b.name, "ru");
-      }
+      if (sort === "name") return a.name.localeCompare(b.name, "ru");
       const scoreA = latestPassingScore(a.passingScores)?.score ?? -1;
       const scoreB = latestPassingScore(b.passingScores)?.score ?? -1;
       return sort === "score-desc" ? scoreB - scoreA : scoreA - scoreB;
@@ -252,131 +244,106 @@ export function UniversitiesCatalog({
     return rows;
   }, [filters, sort, specialties, chanceBySpecialty]);
 
-  function toggleSubject(id: string) {
-    setFilters((prev) => {
-      const has = prev.subjectIds.includes(id);
-      return {
-        ...prev,
-        subjectIds: has
-          ? prev.subjectIds.filter((x) => x !== id)
-          : [...prev.subjectIds, id],
-      };
-    });
-  }
-
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-extrabold tracking-tight text-brand-900">
-          Подбор специальностей по баллам
-        </h1>
-        <p className="mt-1 text-sm text-text-secondary">
-          Подбор вузов и колледжей с оценкой шансов по баллам ЦТ и аттестату.
-        </p>
-        <ChanceLegend
-          className="mt-3"
-          value={filters.chance}
-          onChange={(chance) =>
-            setFilters((prev) => ({ ...prev, chance }))
-          }
-        />
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => void recalculateAll()}
-            disabled={calcBusy || chancesLoading}
-            className="rounded-[10px] bg-brand-700 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-800 disabled:opacity-60"
-          >
-            {calcBusy ? "Пересчёт…" : "Пересчитать шансы"}
-          </button>
-          {chancesLoading ? (
-            <span className="text-sm text-text-muted">Загрузка шансов…</span>
-          ) : null}
-          {chancesError ? (
-            <span className="text-sm text-rose-700">{chancesError}</span>
-          ) : null}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-extrabold tracking-tight text-brand-900">
+            Подбор специальностей по баллам
+          </h1>
+          <p className="mt-1 text-sm text-text-secondary">
+            Фильтры слева, карточки специальностей справа с оценкой шансов.
+          </p>
         </div>
+        <button
+          type="button"
+          onClick={() => void recalculateAll()}
+          disabled={calcBusy || chancesLoading}
+          className="rounded-[10px] bg-brand-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-brand-800 disabled:opacity-60"
+        >
+          {calcBusy ? "Пересчёт…" : "Пересчитать шансы"}
+        </button>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[300px_minmax(0,1fr)]">
-        <section className="h-fit rounded-[14px] border border-border bg-white p-4 shadow-[var(--shadow-soft)]">
+      {chancesError ? (
+        <p className="rounded-[10px] border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+          {chancesError}
+        </p>
+      ) : null}
+
+      <div className="grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <aside className="h-fit rounded-[14px] border border-border bg-white p-4 shadow-[var(--shadow-soft)]">
           <div className="mb-4 flex items-center justify-between gap-2">
-            <h2 className="text-xs font-extrabold uppercase tracking-wide text-brand-900">
+            <h2 className="text-xs font-extrabold uppercase tracking-wide text-text-muted">
               Фильтры подбора
             </h2>
             <button
               type="button"
-              className="text-xs font-semibold text-brand-700 hover:underline"
               onClick={() => setFilters(emptyFilters)}
+              className="text-xs font-bold text-brand-700 hover:underline"
             >
               Сбросить
             </button>
           </div>
 
           <div className="space-y-3">
-            <label className="block space-y-1.5">
-              <span className="text-sm font-semibold text-text-secondary">
-                ВУЗ / СПО
+            <label className="block space-y-1">
+              <span className="text-xs font-semibold text-text-secondary">
+                ВУЗ / ССУЗ
               </span>
               <input
+                className={fieldClass}
                 value={filters.university}
                 onChange={(e) =>
-                  setFilters((prev) => ({ ...prev, university: e.target.value }))
+                  setFilters((f) => ({ ...f, university: e.target.value }))
                 }
-                placeholder="БГУ, БГУИР..."
-                className="w-full rounded-[10px] border border-border bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                placeholder="Название учреждения"
               />
             </label>
 
-            <label className="block space-y-1.5">
-              <span className="text-sm font-semibold text-text-secondary">
+            <label className="block space-y-1">
+              <span className="text-xs font-semibold text-text-secondary">
                 Специальность
               </span>
               <input
+                className={fieldClass}
                 value={filters.specialty}
                 onChange={(e) =>
-                  setFilters((prev) => ({ ...prev, specialty: e.target.value }))
+                  setFilters((f) => ({ ...f, specialty: e.target.value }))
                 }
-                placeholder="Информатика, ПОИТ..."
-                className="w-full rounded-[10px] border border-border bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                placeholder="Название или код"
               />
             </label>
 
-            <div className="space-y-1.5">
-              <span className="text-sm font-semibold text-text-secondary">
-                Предметы ЦТ
-              </span>
-              <div className="max-h-40 space-y-1 overflow-y-auto rounded-[10px] border border-border p-2">
-                {subjects.map((subject) => {
-                  const checked = filters.subjectIds.includes(subject.id);
-                  return (
-                    <label
-                      key={subject.id}
-                      className="flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-sm text-text-secondary hover:bg-[#f4f7f9]"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggleSubject(subject.id)}
-                        className="accent-brand-700"
-                      />
-                      {subject.name}
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-
-            <label className="block space-y-1.5">
-              <span className="text-sm font-semibold text-text-secondary">
-                Город
+            <label className="block space-y-1">
+              <span className="text-xs font-semibold text-text-secondary">
+                Необходимые предметы ЦТ
               </span>
               <select
-                value={filters.city}
+                className={fieldClass}
+                value={filters.subjectIds[0] || ""}
                 onChange={(e) =>
-                  setFilters((prev) => ({ ...prev, city: e.target.value }))
+                  setFilters((f) => ({
+                    ...f,
+                    subjectIds: e.target.value ? [e.target.value] : [],
+                  }))
                 }
-                className="w-full rounded-[10px] border border-border bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+              >
+                <option value="">Все предметы</option>
+                {subjects.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block space-y-1">
+              <span className="text-xs font-semibold text-text-secondary">Город</span>
+              <select
+                className={fieldClass}
+                value={filters.city}
+                onChange={(e) => setFilters((f) => ({ ...f, city: e.target.value }))}
               >
                 <option value="">Все города</option>
                 {cities.map((city) => (
@@ -387,239 +354,283 @@ export function UniversitiesCatalog({
               </select>
             </label>
 
-            <fieldset className="space-y-1.5">
-              <legend className="text-sm font-semibold text-text-secondary">
+            <div className="space-y-1.5">
+              <span className="text-xs font-semibold text-text-secondary">
                 Основа обучения
-              </legend>
-              <div className="flex flex-wrap gap-3 text-sm text-text-secondary">
-                <label className="inline-flex items-center gap-1.5">
-                  <input
-                    type="radio"
-                    name="funding"
-                    checked={filters.funding === ""}
-                    onChange={() =>
-                      setFilters((prev) => ({ ...prev, funding: "" }))
-                    }
-                    className="accent-brand-700"
-                  />
-                  Любая
-                </label>
-                <label className="inline-flex items-center gap-1.5">
-                  <input
-                    type="radio"
-                    name="funding"
-                    checked={filters.funding === "budget"}
-                    onChange={() =>
-                      setFilters((prev) => ({ ...prev, funding: "budget" }))
-                    }
-                    className="accent-brand-700"
-                  />
-                  Бюджет
-                </label>
-                <label className="inline-flex items-center gap-1.5">
-                  <input
-                    type="radio"
-                    name="funding"
-                    checked={filters.funding === "paid"}
-                    onChange={() =>
-                      setFilters((prev) => ({ ...prev, funding: "paid" }))
-                    }
-                    className="accent-brand-700"
-                  />
-                  Платное
-                </label>
+              </span>
+              <div className="flex gap-2">
+                {(
+                  [
+                    ["", "Все"],
+                    ["budget", "Бюджет"],
+                    ["paid", "Платное"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value || "all"}
+                    type="button"
+                    onClick={() => setFilters((f) => ({ ...f, funding: value }))}
+                    className={cn(
+                      "flex-1 rounded-[10px] border px-2 py-2 text-xs font-bold",
+                      filters.funding === value
+                        ? "border-brand-700 bg-brand-100 text-brand-900"
+                        : "border-border text-text-secondary hover:bg-[#f8fafc]",
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
-            </fieldset>
+            </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <label className="block space-y-1.5">
-                <span className="text-sm font-semibold text-text-secondary">
-                  Формат
-                </span>
-                <select
-                  value={filters.studyForm}
-                  onChange={(e) =>
-                    setFilters((prev) => ({
-                      ...prev,
-                      studyForm: e.target.value,
-                    }))
-                  }
-                  className="w-full rounded-[10px] border border-border bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-                >
-                  <option value="">Любой</option>
-                  <option value="fulltime">Очное</option>
-                  <option value="parttime">Заочное</option>
-                  <option value="distance">Дистанционное</option>
-                </select>
-              </label>
+            <label className="block space-y-1">
+              <span className="text-xs font-semibold text-text-secondary">Форма</span>
+              <select
+                className={fieldClass}
+                value={filters.studyForm}
+                onChange={(e) =>
+                  setFilters((f) => ({ ...f, studyForm: e.target.value }))
+                }
+              >
+                <option value="">Любая</option>
+                <option value="fulltime">Очное</option>
+                <option value="parttime">Заочное</option>
+                <option value="distance">Дистанционное</option>
+              </select>
+            </label>
 
-              <label className="block space-y-1.5">
-                <span className="text-sm font-semibold text-text-secondary">
-                  Тип
-                </span>
-                <select
-                  value={filters.type}
-                  onChange={(e) =>
-                    setFilters((prev) => ({ ...prev, type: e.target.value }))
-                  }
-                  className="w-full rounded-[10px] border border-border bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-                >
-                  <option value="">Любой</option>
-                  <option value="university">ВУЗ</option>
-                  <option value="college">Колледж</option>
-                </select>
-              </label>
+            <label className="block space-y-1">
+              <span className="text-xs font-semibold text-text-secondary">Тип</span>
+              <select
+                className={fieldClass}
+                value={filters.type}
+                onChange={(e) => setFilters((f) => ({ ...f, type: e.target.value }))}
+              >
+                <option value="">Все</option>
+                <option value="university">ВУЗ</option>
+                <option value="college">Колледж</option>
+              </select>
+            </label>
+
+            <div className="space-y-2 border-t border-border pt-3">
+              <span className="text-xs font-semibold text-text-secondary">
+                Шанс поступления
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {(
+                  [
+                    ["", "Все"],
+                    ["green", "Проходит"],
+                    ["yellow", "На грани"],
+                    ["red", "Не хватает"],
+                    ["none", "Без оценки"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value || "all"}
+                    type="button"
+                    onClick={() => setFilters((f) => ({ ...f, chance: value }))}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold",
+                      filters.chance === value
+                        ? "border-brand-700 bg-brand-100 text-brand-900"
+                        : "border-border text-text-secondary hover:bg-[#f8fafc]",
+                    )}
+                  >
+                    {value && value !== "none" ? (
+                      <span
+                        className={cn(
+                          "h-2 w-2 rounded-full",
+                          value === "green" && "bg-emerald-500",
+                          value === "yellow" && "bg-amber-400",
+                          value === "red" && "bg-rose-500",
+                        )}
+                      />
+                    ) : null}
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-        </section>
+        </aside>
 
-        <section className="space-y-3">
+        <section className="min-w-0 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm font-semibold text-text-secondary">
-              Найдено {filtered.length}{" "}
+              Найдено{" "}
+              <span className="text-brand-900">{filtered.length}</span>{" "}
               {filtered.length === 1
                 ? "специальность"
                 : filtered.length >= 2 && filtered.length <= 4
                   ? "специальности"
                   : "специальностей"}
+              {chancesLoading ? " · загрузка шансов…" : ""}
             </p>
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value as SortMode)}
-              className="rounded-[10px] border border-border bg-white px-3 py-2 text-sm outline-none focus:border-brand-500"
-            >
-              <option value="score-desc">По проходному баллу (убывание)</option>
-              <option value="score-asc">По проходному баллу (возрастание)</option>
-              <option value="name">По названию</option>
-            </select>
+            <label className="flex items-center gap-2 text-sm text-text-secondary">
+              <span>Сортировка:</span>
+              <select
+                className="rounded-[10px] border border-border bg-white px-3 py-2 text-sm"
+                value={sort}
+                onChange={(e) => setSort(e.target.value as SortMode)}
+              >
+                <option value="score-desc">Проходной балл (убыв.)</option>
+                <option value="score-asc">Проходной балл (возр.)</option>
+                <option value="name">По названию</option>
+              </select>
+            </label>
           </div>
 
           {filtered.length === 0 ? (
-            <div className="rounded-[14px] border border-border bg-white p-8 text-center text-sm text-text-muted">
-              Ничего не найдено. Измените фильтры.
-            </div>
+            <p className="rounded-[14px] border border-border bg-white p-6 text-sm text-text-secondary shadow-[var(--shadow-soft)]">
+              По выбранным фильтрам ничего не найдено.
+            </p>
           ) : (
             <ul className="space-y-3">
               {filtered.map((item) => {
                 const institution = item.institution!;
                 const passing = latestPassingScore(item.passingScores);
-                const subjectNames = (item.subjects || [])
-                  .map((s) => s.subject?.name)
-                  .filter(Boolean)
-                  .join(", ");
                 const chance = chanceBySpecialty.get(item.id);
-                const isFavorite = favoriteIds.has(item.id);
+                const isFav = favoriteIds.has(item.id);
+                const accent = accentForChance(chance?.status);
+                const gap = chance?.scoreGap;
+                const gapText =
+                  gap == null
+                    ? null
+                    : gap > 0
+                      ? `не хватает ${gap}`
+                      : gap < 0
+                        ? `запас ${Math.abs(gap)}`
+                        : "вровень";
 
                 return (
                   <li
                     key={item.id}
-                    className="relative rounded-[14px] border border-border bg-white p-4 pb-12 shadow-[var(--shadow-soft)]"
+                    className={cn(
+                      "overflow-hidden rounded-[14px] border border-border bg-white shadow-[var(--shadow-soft)]",
+                      "border-l-4",
+                      accent.border,
+                    )}
                   >
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div>
-                        <h3 className="text-base font-extrabold text-brand-900">
-                          {institution.shortName} — {institution.fullName}
-                        </h3>
-                        <p className="mt-1 text-sm text-text-secondary">
-                          Специальность: {item.name}
-                        </p>
-                        <p className="text-xs text-text-muted">
-                          Код ОКРБ: {item.okrbCode} ·{" "}
-                          {institutionTypeLabel(institution.type)}
-                        </p>
-                      </div>
-                    </div>
+                    <div className="p-4 md:p-5">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1 space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {chance ? (
+                              <span
+                                className={cn(
+                                  "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold",
+                                  accent.badge,
+                                )}
+                              >
+                                <span className={cn("h-1.5 w-1.5 rounded-full", accent.dot)} />
+                                {catalogChanceLabel(chance.status)}
+                              </span>
+                            ) : (
+                              <span className="rounded-full bg-[#eef2f5] px-2.5 py-0.5 text-xs font-bold text-text-muted">
+                                Нет оценки
+                              </span>
+                            )}
+                            {gapText ? (
+                              <span className="rounded-full bg-[#f4f7f9] px-2.5 py-0.5 text-xs font-semibold text-text-secondary">
+                                {gapText}
+                              </span>
+                            ) : null}
+                          </div>
 
-                    <div className="absolute bottom-3 left-3">
-                      {chance ? (
-                        <ChanceBadge chance={chance} />
-                      ) : (
-                        <span className="inline-flex items-center gap-2 rounded-full border border-border bg-[#f4f7f9] px-3 py-1 text-xs font-semibold text-text-muted">
-                          <span className="h-2.5 w-2.5 rounded-full bg-border" />
-                          Нет оценки
-                        </span>
-                      )}
-                    </div>
+                          <div>
+                            <h3 className="text-base font-extrabold text-brand-900">
+                              {institution.shortName} — {institution.fullName}
+                            </h3>
+                            <p className="mt-0.5 text-sm font-semibold text-text-primary">
+                              {item.name}
+                            </p>
+                            <p className="text-xs text-text-muted">
+                              Код ОКРБ {item.okrbCode} · {institutionTypeLabel(institution.type)}
+                            </p>
+                          </div>
 
-                    <div className="mt-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-                      <div>
-                        <div className="text-xs text-text-muted">Город</div>
-                        <div className="font-semibold text-text-primary">
-                          {institution.city || "—"}
+                          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                            <Meta label="Город" value={institution.city || "—"} />
+                            <Meta
+                              label={`Проходной ${passing?.year ?? ""}`.trim()}
+                              value={
+                                passing
+                                  ? `${passing.score} баллов`
+                                  : "нет данных"
+                              }
+                            />
+                            <Meta
+                              label="Основа / форма"
+                              value={`${fundingLabel(item.funding)}, ${studyFormLabel(item.studyForm)}`}
+                            />
+                            <Meta
+                              label="План набора"
+                              value={`${item.placesPlan} мест`}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="text-right">
+                          <div className="text-[11px] font-bold uppercase tracking-wide text-text-muted">
+                            Шанс
+                          </div>
+                          <div
+                            className={cn(
+                              "text-3xl font-black leading-none",
+                              accent.percent,
+                            )}
+                          >
+                            {chance?.probability != null
+                              ? `${Math.round(chance.probability * 100)}%`
+                              : "—"}
+                          </div>
                         </div>
                       </div>
-                      <div>
-                        <div className="text-xs text-text-muted">
-                          Проходной{passing ? ` ${passing.year}` : ""}
-                        </div>
-                        <div className="font-semibold text-text-primary">
-                          {passing ? passing.score : "—"}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-text-muted">
-                          Основа / формат
-                        </div>
-                        <div className="font-semibold text-text-primary">
-                          {fundingLabel(item.funding)} /{" "}
-                          {studyFormLabel(item.studyForm)}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-text-muted">План набора</div>
-                        <div className="font-semibold text-text-primary">
-                          {item.placesPlan}
-                        </div>
-                      </div>
-                    </div>
 
-                    <p className="mt-3 text-sm text-text-secondary">
-                      Предметы ЦТ: {subjectNames || "не указаны"}
-                    </p>
-
-                    {chance?.probability != null ? (
-                      <p className="mt-3 text-sm text-text-secondary">
-                        Конкурсный балл: {chance.probability}
-                        {chance.scoreGap != null
-                          ? ` · до проходного: ${chance.scoreGap >= 0 ? "+" : ""}${chance.scoreGap}`
-                          : ""}
-                      </p>
-                    ) : null}
-
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        disabled={busySpecialtyId === item.id}
-                        onClick={() => void toggleFavorite(item.id)}
-                        className={
-                          isFavorite
-                            ? "rounded-[10px] border border-brand-600 bg-brand-50 px-3.5 py-2 text-sm font-semibold text-brand-800"
-                            : "rounded-[10px] border border-brand-600 px-3.5 py-2 text-sm font-semibold text-brand-800 hover:bg-brand-50"
-                        }
-                      >
-                        {isFavorite ? "В избранном" : "В избранное"}
-                      </button>
-                      <details className="rounded-[10px] border border-border">
-                        <summary className="cursor-pointer list-none px-3.5 py-2 text-sm font-semibold text-brand-800">
+                      <div className="mt-4 flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={busySpecialtyId === item.id}
+                          onClick={() => void toggleFavorite(item.id)}
+                          className={cn(
+                            "inline-flex items-center gap-2 rounded-[10px] border px-3 py-2 text-sm font-bold",
+                            isFav
+                              ? "border-brand-700 bg-brand-100 text-brand-900"
+                              : "border-border text-brand-800 hover:bg-[#f8fafc]",
+                          )}
+                        >
+                          <BookmarkIcon filled={isFav} />
+                          {isFav ? "В избранном" : "В избранное"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setExpandedId((id) => (id === item.id ? null : item.id))
+                          }
+                          className="rounded-[10px] border border-brand-700 px-3 py-2 text-sm font-bold text-brand-800 hover:bg-brand-100"
+                        >
                           Подробнее
-                        </summary>
-                        <div className="border-t border-border px-3.5 py-3 text-sm text-text-secondary">
-                          <p>Адрес: {institution.address || "не указан"}</p>
-                          {passing?.competition != null ? (
-                            <p className="mt-1">
-                              Конкурс {passing.year}: {passing.competition}
-                            </p>
-                          ) : null}
-                          {(item.passingScores || []).length > 1 ? (
-                            <p className="mt-1">
-                              История проходных:{" "}
-                              {(item.passingScores || [])
-                                .map((p) => `${p.year} — ${p.score}`)
-                                .join("; ")}
-                            </p>
-                          ) : null}
+                        </button>
+                      </div>
+
+                      {expandedId === item.id ? (
+                        <div className="mt-4 rounded-[12px] border border-border bg-[#f8fafc] p-3 text-sm text-text-secondary">
+                          <p className="font-semibold text-brand-900">Предметы ЦТ</p>
+                          <ul className="mt-2 space-y-1">
+                            {(item.subjects || []).length === 0 ? (
+                              <li>Предметы не указаны</li>
+                            ) : (
+                              (item.subjects || []).map((s) => (
+                                <li key={s.id}>
+                                  {s.subject?.name || s.subjectId}
+                                  {s.minScore ? ` · мин. ${s.minScore}` : ""}
+                                </li>
+                              ))
+                            )}
+                          </ul>
                         </div>
-                      </details>
+                      ) : null}
                     </div>
                   </li>
                 );
@@ -632,77 +643,60 @@ export function UniversitiesCatalog({
   );
 }
 
-function ChanceLegend({
-  className,
-  value,
-  onChange,
-}: {
-  className?: string;
-  value: ChanceFilter;
-  onChange: (next: ChanceFilter) => void;
-}) {
-  const items: {
-    key: ChanceFilter;
-    status?: ChanceResult["status"];
-    label: string;
-  }[] = [
-    { key: "green", status: "green", label: "Проходит" },
-    { key: "yellow", status: "yellow", label: "На грани" },
-    { key: "red", status: "red", label: "Не хватает" },
-    { key: "none", label: "Без оценки" },
-  ];
+function Meta({ label, value }: { label: string; value: string }) {
   return (
-    <div
-      className={`flex flex-wrap items-center gap-2 text-sm text-text-secondary ${className || ""}`}
-    >
-      <span className="text-xs font-bold uppercase tracking-wide text-text-muted">
-        Шанс:
-      </span>
-      <button
-        type="button"
-        onClick={() => onChange("")}
-        className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-          value === ""
-            ? "border-brand-600 bg-brand-50 text-brand-900"
-            : "border-border bg-white text-text-secondary hover:bg-[#f4f7f9]"
-        }`}
-      >
-        Все
-      </button>
-      {items.map((item) => (
-        <button
-          key={item.key}
-          type="button"
-          onClick={() => onChange(value === item.key ? "" : item.key)}
-          className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${
-            value === item.key
-              ? "border-brand-600 bg-brand-50 text-brand-900"
-              : "border-border bg-white text-text-secondary hover:bg-[#f4f7f9]"
-          }`}
-        >
-          {item.status ? (
-            <span
-              className={`h-2.5 w-2.5 rounded-full ${chanceDotClasses(item.status)}`}
-            />
-          ) : (
-            <span className="h-2.5 w-2.5 rounded-full bg-border" />
-          )}
-          {item.label}
-        </button>
-      ))}
+    <div>
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+        {label}
+      </div>
+      <div className="mt-0.5 text-sm font-semibold text-text-primary">{value}</div>
     </div>
   );
 }
 
-function ChanceBadge({ chance }: { chance: ChanceResult }) {
+function accentForChance(status?: ChanceStatus) {
+  if (status === "green") {
+    return {
+      border: "border-l-emerald-500",
+      badge: "bg-emerald-50 text-emerald-800",
+      dot: "bg-emerald-500",
+      percent: "text-emerald-700",
+    };
+  }
+  if (status === "yellow") {
+    return {
+      border: "border-l-amber-400",
+      badge: "bg-amber-50 text-amber-900",
+      dot: "bg-amber-400",
+      percent: "text-amber-700",
+    };
+  }
+  if (status === "red") {
+    return {
+      border: "border-l-rose-500",
+      badge: "bg-rose-50 text-rose-800",
+      dot: "bg-rose-500",
+      percent: "text-rose-700",
+    };
+  }
+  return {
+    border: "border-l-border",
+    badge: "bg-[#eef2f5] text-text-muted",
+    dot: "bg-text-muted",
+    percent: "text-text-muted",
+  };
+}
+
+function BookmarkIcon({ filled }: { filled: boolean }) {
   return (
-    <span
-      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${chanceStatusClasses(chance.status)}`}
+    <svg
+      viewBox="0 0 24 24"
+      className="h-4 w-4"
+      fill={filled ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth="2"
     >
-      <span
-        className={`h-2.5 w-2.5 rounded-full ${chanceDotClasses(chance.status)}`}
-      />
-      {catalogChanceLabel(chance.status)}
-    </span>
+      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+    </svg>
   );
 }
