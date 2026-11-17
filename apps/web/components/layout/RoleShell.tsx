@@ -59,11 +59,48 @@ export function RoleShell({
 
   return (
     <div className="flex min-h-full min-w-[1024px] flex-col bg-bg-page">
-      <div className="flex min-h-0 flex-1">
-        <aside className="flex w-[240px] shrink-0 flex-col border-r border-border bg-white">
-          <div className="border-b border-border px-5 py-5">
+      <header className="border-b border-border bg-white">
+        <div className="mx-auto flex h-16 w-full max-w-[1280px] items-center justify-between gap-3 px-4 md:px-8">
+          <div className="flex min-w-0 items-center gap-4">
             <Logo href={homeHref} />
+            <span className="hidden text-sm font-semibold text-text-muted sm:inline">
+              {roleName}
+            </span>
           </div>
+          <div className="ml-auto flex items-center gap-2 sm:gap-3">
+            {headerBadge}
+            <NotificationsBell />
+            <ProfileMenu roleName={roleName} links={profileLinks} />
+          </div>
+        </div>
+        {showMobileNav ? (
+          <nav className="mx-auto flex w-full max-w-[1280px] gap-1 overflow-x-auto border-t border-border px-4 py-2 md:px-8 lg:hidden">
+            {navItems.map((item) => {
+              const active = isActive(pathname, item);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "inline-flex shrink-0 items-center gap-1.5 rounded-[10px] px-3 py-2 text-xs font-semibold",
+                    active
+                      ? "bg-brand-100 text-brand-900"
+                      : "text-text-secondary",
+                  )}
+                >
+                  {item.icon ? (
+                    <NavIcon name={item.icon} className="h-3.5 w-3.5" />
+                  ) : null}
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+        ) : null}
+      </header>
+
+      <div className="flex min-h-0 flex-1">
+        <aside className="hidden w-[240px] shrink-0 flex-col border-r border-border bg-white lg:flex">
           <nav className="flex flex-1 flex-col gap-1 p-3">
             {navItems.map((item) => {
               const active = isActive(pathname, item);
@@ -91,48 +128,11 @@ export function RoleShell({
           ) : null}
         </aside>
 
-        <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden">
-          <header className="border-b border-border bg-white">
-            <div className="mx-auto flex h-16 w-full max-w-[1280px] items-center justify-between gap-3 px-4 md:px-8">
-              <div className="text-sm font-semibold text-text-muted">{roleName}</div>
-              <div className="ml-auto flex items-center gap-2 sm:gap-3">
-                {headerBadge}
-                <NotificationsBell />
-                <ProfileMenu roleName={roleName} links={profileLinks} />
-              </div>
-            </div>
-            {showMobileNav ? (
-              <nav className="mx-auto flex w-full max-w-[1280px] gap-1 overflow-x-auto border-t border-border px-4 py-2 md:px-8 lg:hidden">
-                {navItems.map((item) => {
-                  const active = isActive(pathname, item);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={cn(
-                        "inline-flex shrink-0 items-center gap-1.5 rounded-[10px] px-3 py-2 text-xs font-semibold",
-                        active
-                          ? "bg-brand-100 text-brand-900"
-                          : "text-text-secondary",
-                      )}
-                    >
-                      {item.icon ? (
-                        <NavIcon name={item.icon} className="h-3.5 w-3.5" />
-                      ) : null}
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </nav>
-            ) : null}
-          </header>
-
-          <main className="min-w-0 flex-1 overflow-x-auto">
-            <div className="mx-auto w-full max-w-[1280px] px-4 py-6 md:px-8 md:py-8">
-              {children}
-            </div>
-          </main>
-        </div>
+        <main className="min-w-0 flex-1 overflow-x-auto">
+          <div className="mx-auto w-full max-w-[1280px] px-4 py-6 md:px-8 md:py-8">
+            {children}
+          </div>
+        </main>
       </div>
 
       <CabinetFooter {...footer} />
