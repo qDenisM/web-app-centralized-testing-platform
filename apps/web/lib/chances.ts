@@ -16,6 +16,7 @@ export type ChanceResult = {
   userId: string;
   specialtyId: string;
   status: ChanceStatus;
+  /** Admission probability in percent (0–100). */
   probability: number | null;
   scoreGap: number | null;
   calculatedAt: string;

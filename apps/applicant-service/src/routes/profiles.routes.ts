@@ -212,18 +212,27 @@ profilesRoutes.post(
         throw AppError.badRequest("Некорректный ключ файла");
       }
 
-      const aiRes = await fetch(`${config.aiUrl}/ocr/attestat`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({ storageKey: body.storageKey }),
-      });
+      let aiRes: Response;
+      try {
+        aiRes = await fetch(`${config.aiUrl}/ocr/attestat`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({ storageKey: body.storageKey }),
+        });
+      } catch {
+        throw AppError.badRequest(
+          "OCR-сервис недоступен. Заполните поля вручную.",
+        );
+      }
 
       if (!aiRes.ok) {
         const text = await aiRes.text();
-        throw AppError.badRequest(text || "OCR-сервис временно недоступен");
+        throw AppError.badRequest(
+          text || "OCR-сервис временно недоступен. Заполните поля вручную.",
+        );
       }
 
       const data = (await aiRes.json()) as {

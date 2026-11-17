@@ -44,8 +44,7 @@ function isActive(pathname: string, item: RoleNavItem) {
   return pathname === item.href || pathname.startsWith(`${item.href}/`);
 }
 
-const shellContainer =
-  "mx-auto flex w-full max-w-[1280px] px-4 md:px-8";
+const shellContainer = "mx-auto flex w-full px-4 md:px-8";
 
 export function RoleShell({
   children,

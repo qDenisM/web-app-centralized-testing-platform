@@ -1,3 +1,4 @@
+import { RequireAuth } from "@/components/auth/RequireAuth";
 import { ApplicantShell } from "@/components/layout/ApplicantShell";
 
 export default function ApplicantLayout({
@@ -5,5 +6,9 @@ export default function ApplicantLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <ApplicantShell>{children}</ApplicantShell>;
+  return (
+    <RequireAuth>
+      <ApplicantShell>{children}</ApplicantShell>
+    </RequireAuth>
+  );
 }

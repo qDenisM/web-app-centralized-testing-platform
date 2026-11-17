@@ -11,6 +11,7 @@ import {
   type ExamWaitlistEntry,
 } from "@/lib/exam";
 import type { CtResult } from "@/lib/results";
+import { FilterSelect } from "@/components/ui/FilterSelect";
 import { cn } from "@/lib/utils";
 
 type Tab = "register" | "schedule" | "results" | "errors";
@@ -206,10 +207,11 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
   const attestatAvg = profile?.attestatAverage ?? null;
   const attestatScaled =
     attestatAvg !== null ? Math.round(attestatAvg * 10 * 10) / 10 : null;
+  // Competitive score only when both CT scores and attestat are present.
   const competitiveTotal =
-    attestatScaled !== null
+    attestatScaled !== null && publishedResults.length > 0
       ? Math.round((ctSum + attestatScaled) * 10) / 10
-      : ctSum || null;
+      : null;
 
   const errorsResult = useMemo(() => {
     if (!errorsSubjectId) return null;
@@ -364,10 +366,10 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
               <span className="mb-1 block font-semibold text-text-secondary">
                 Предмет
               </span>
-              <select
-                value={subjectFilter}
+              <FilterSelect
+                value={subjectFilter || ""}
                 onChange={(e) => setSubjectFilter(e.target.value)}
-                className="rounded-[10px] border border-border bg-white px-3 py-2 text-sm"
+                className="min-w-[220px]"
               >
                 <option value="">Все предметы</option>
                 {subjects.map((s) => (
@@ -375,7 +377,7 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
                     {s.name}
                   </option>
                 ))}
-              </select>
+              </FilterSelect>
             </label>
           </div>
 
@@ -712,16 +714,13 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
 
       {!loading && !error && tab === "errors" ? (
         <div className="space-y-4">
-          <label className="block text-sm">
-            <span className="mb-1 block font-semibold text-text-secondary">
+          <label className="block max-w-md text-sm">
+            <span className="mb-1.5 block font-semibold text-text-secondary">
               Предмет для разбора
             </span>
-            <select
+            <FilterSelect
               value={errorsSubjectId || ""}
-              onChange={(e) =>
-                setErrorsSubjectId(e.target.value || null)
-              }
-              className="rounded-[10px] border border-border bg-white px-3 py-2 text-sm"
+              onChange={(e) => setErrorsSubjectId(e.target.value || null)}
             >
               <option value="">Выберите предмет</option>
               {publishedResults.map((row) => {
@@ -733,7 +732,7 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
                   </option>
                 );
               })}
-            </select>
+            </FilterSelect>
           </label>
 
           {!errorsSubjectId ? (

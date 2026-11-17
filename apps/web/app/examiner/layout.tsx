@@ -1,3 +1,4 @@
+import { RequireAuth } from "@/components/auth/RequireAuth";
 import { ExaminerShell } from "@/components/layout/ExaminerShell";
 
 export default function ExaminerLayout({
@@ -5,5 +6,9 @@ export default function ExaminerLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <ExaminerShell>{children}</ExaminerShell>;
+  return (
+    <RequireAuth>
+      <ExaminerShell>{children}</ExaminerShell>
+    </RequireAuth>
+  );
 }

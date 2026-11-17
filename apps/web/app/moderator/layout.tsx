@@ -1,3 +1,4 @@
+import { RequireAuth } from "@/components/auth/RequireAuth";
 import { ModeratorShell } from "@/components/layout/ModeratorShell";
 
 export default function ModeratorLayout({
@@ -5,5 +6,9 @@ export default function ModeratorLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <ModeratorShell>{children}</ModeratorShell>;
+  return (
+    <RequireAuth>
+      <ModeratorShell>{children}</ModeratorShell>
+    </RequireAuth>
+  );
 }

@@ -139,6 +139,11 @@ npm run storage:init -w @abiturent/exam-service
 
 ```bash
 npm run dev:services   # 3001–3007 (см. scripts/dev-services.sh)
+
+cd apps/ai-service
+source .venv/bin/activate
+uvicorn app.main:app --host 127.0.0.1 --port 3010 --reload
+
 # в другом терминале:
 npm run dev:web        # http://localhost:3000
 ```

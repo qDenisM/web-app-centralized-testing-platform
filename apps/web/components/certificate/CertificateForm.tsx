@@ -27,6 +27,10 @@ export function CertificateForm() {
   const [ocrLoading, setOcrLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{
+    attestatAverage?: string;
+    storageKey?: string;
+  }>({});
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -44,16 +48,14 @@ export function CertificateForm() {
         }
         if (cancelled) return;
         setProfile(data);
-        setStorageKey(data.storageKey);
-        setGraduateName(data.graduateName || "");
-        setSchoolName(data.schoolName || "");
-        setAttestatAverage(
-          data.attestatAverage != null ? String(data.attestatAverage) : "",
-        );
-        setAttestatIssuedOn(data.attestatIssuedOn || "");
-        if (data.storageKey) {
-          setFileName("Загруженный скан");
-        }
+        // Recognition form stays empty until OCR / manual input.
+        setStorageKey(null);
+        setFileName(null);
+        setGraduateName("");
+        setSchoolName("");
+        setAttestatAverage("");
+        setAttestatIssuedOn("");
+        setLowConfidence([]);
       } catch {
         if (!cancelled) {
           setError("Сеть недоступна. Проверьте applicant-service.");
@@ -145,6 +147,7 @@ export function CertificateForm() {
 
       setStorageKey(signed.storageKey);
       setFileName(file.name);
+      setFieldErrors((prev) => ({ ...prev, storageKey: undefined }));
       setUploading(false);
       await runOcr(signed.storageKey);
     } catch {
@@ -166,23 +169,36 @@ export function CertificateForm() {
     setAttestatAverage("");
     setAttestatIssuedOn("");
     setLowConfidence([]);
+    setFieldErrors({});
+    setError(null);
   }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
 
+    const nextErrors: { attestatAverage?: string; storageKey?: string } = {};
+
     if (!storageKey) {
-      setError("Сначала загрузите скан аттестата");
+      nextErrors.storageKey = "Загрузите скан аттестата";
+    }
+
+    const trimmed = attestatAverage.trim();
+    if (!trimmed) {
+      nextErrors.attestatAverage = "Заполните это поле";
+    } else {
+      const average = Number(trimmed.replace(",", "."));
+      if (!Number.isFinite(average) || average < 1 || average > 10) {
+        nextErrors.attestatAverage = "Средний балл должен быть от 1.0 до 10.0";
+      }
+    }
+
+    setFieldErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
       return;
     }
 
     const average = Number(attestatAverage.replace(",", "."));
-    if (!Number.isFinite(average) || average < 1 || average > 10) {
-      setError("Средний балл должен быть от 1.0 до 10.0");
-      return;
-    }
-
     setSaving(true);
     try {
       const res = await fetch("/api/applicant/attestat/confirm", {
@@ -316,7 +332,7 @@ export function CertificateForm() {
             ) : null}
           </div>
 
-          <form onSubmit={onSubmit} className="space-y-4">
+          <form noValidate onSubmit={onSubmit} className="space-y-4">
             <Input
               label="ФИО выпускника"
               name="graduateName"
@@ -358,9 +374,17 @@ export function CertificateForm() {
                 min="1"
                 max="10"
                 value={attestatAverage}
-                onChange={(e) => setAttestatAverage(e.target.value)}
+                onChange={(e) => {
+                  setAttestatAverage(e.target.value);
+                  if (fieldErrors.attestatAverage) {
+                    setFieldErrors((prev) => ({
+                      ...prev,
+                      attestatAverage: undefined,
+                    }));
+                  }
+                }}
                 placeholder="9.0"
-                required
+                error={fieldErrors.attestatAverage}
               />
               <Input
                 label="Дата выдачи"
@@ -374,6 +398,21 @@ export function CertificateForm() {
             <div className="rounded-[10px] border border-[#2F6FAE]/20 bg-[#E7F0F8] px-3 py-2.5 text-xs text-[#2F6FAE]">
               Значение среднего балла будет записано в ваш конкурсный профиль.
             </div>
+
+            {fieldErrors.storageKey ? (
+              <p
+                role="alert"
+                className="flex items-start gap-2 rounded-[10px] border border-[#C94343]/25 bg-[#FDECEC] px-3 py-2 text-xs font-semibold text-[#9B2C2C]"
+              >
+                <span
+                  className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] bg-[#C94343] text-[10px] font-black text-white"
+                  aria-hidden
+                >
+                  !
+                </span>
+                {fieldErrors.storageKey}
+              </p>
+            ) : null}
 
             {error ? (
               <p className="rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">

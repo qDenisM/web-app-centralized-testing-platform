@@ -1,30 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import {
-  chanceStatusLabel,
-  type ChanceResult,
-  type Favorite,
-} from "@/lib/chances";
+import { useEffect, useMemo, useState } from "react";
+import { type ChanceResult, type Favorite } from "@/lib/chances";
+import { catalogChanceLabel } from "@/lib/chances-display";
+import type { CatalogSpecialty } from "@/lib/catalog";
+import { cn } from "@/lib/utils";
 
 export default function FavoritesPage() {
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [chances, setChances] = useState<ChanceResult[]>([]);
+  const [specialties, setSpecialties] = useState<CatalogSpecialty[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       setLoading(true);
       try {
-        const [favRes, chanceRes] = await Promise.all([
+        const [favRes, chanceRes, specRes] = await Promise.all([
           fetch("/api/favorites"),
           fetch("/api/chances/me"),
+          fetch("/api/catalog/specialties"),
         ]);
         const favJson = (await favRes.json().catch(() => [])) as Favorite[];
         const chanceJson = (await chanceRes.json().catch(() => [])) as ChanceResult[];
+        const specJson = (await specRes.json().catch(() => [])) as CatalogSpecialty[];
         if (cancelled) return;
         if (!favRes.ok || !Array.isArray(favJson)) {
           setError("Не удалось загрузить избранное");
@@ -32,6 +35,7 @@ export default function FavoritesPage() {
         }
         setFavorites(favJson);
         setChances(Array.isArray(chanceJson) ? chanceJson : []);
+        setSpecialties(Array.isArray(specJson) ? specJson : []);
       } catch {
         if (!cancelled) setError("Сеть недоступна");
       } finally {
@@ -43,6 +47,34 @@ export default function FavoritesPage() {
       cancelled = true;
     };
   }, []);
+
+  const specialtyById = useMemo(() => {
+    const map = new Map<string, CatalogSpecialty>();
+    for (const row of specialties) map.set(row.id, row);
+    return map;
+  }, [specialties]);
+
+  async function removeFavorite(specialtyId: string) {
+    setBusyId(specialtyId);
+    setError(null);
+    try {
+      const res = await fetch(`/api/favorites/${specialtyId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const json = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        setError(json?.error || "Не удалось убрать из избранного");
+        return;
+      }
+      setFavorites((prev) => prev.filter((f) => f.specialtyId !== specialtyId));
+    } catch {
+      setError("Сеть недоступна");
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   return (
     <div className="space-y-5">
@@ -84,6 +116,13 @@ export default function FavoritesPage() {
         <ul className="space-y-2">
           {favorites.map((fav) => {
             const chance = chances.find((c) => c.specialtyId === fav.specialtyId);
+            const specialty = specialtyById.get(fav.specialtyId);
+            const institution = specialty?.institution;
+            const title = specialty
+              ? institution
+                ? `${institution.shortName} — ${specialty.name}`
+                : specialty.name
+              : null;
             return (
               <li
                 key={fav.id}
@@ -91,20 +130,42 @@ export default function FavoritesPage() {
               >
                 <div>
                   <div className="font-semibold text-brand-900">
-                    Специальность {fav.specialtyId.slice(0, 8)}…
+                    {title || "Специальность недоступна в каталоге"}
                   </div>
-                  <div className="text-xs text-text-muted">
+                  <div
+                    className={cn(
+                      "text-xs font-semibold",
+                      chance?.status === "green" && "text-emerald-700",
+                      chance?.status === "yellow" && "text-amber-800",
+                      chance?.status === "red" && "text-rose-700",
+                      !chance && "text-text-muted",
+                    )}
+                  >
                     {chance
-                      ? chanceStatusLabel(chance.status)
+                      ? `${catalogChanceLabel(chance.status)}${
+                          chance.probability != null
+                            ? ` · ${Math.round(chance.probability)}%`
+                            : ""
+                        }`
                       : "шанс не рассчитан"}
                   </div>
                 </div>
-                <Link
-                  href="/app/universities"
-                  className="text-sm font-bold text-brand-700 hover:underline"
-                >
-                  Подробнее
-                </Link>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    disabled={busyId === fav.specialtyId}
+                    onClick={() => void removeFavorite(fav.specialtyId)}
+                    className="text-sm font-bold text-rose-700 hover:underline disabled:opacity-60"
+                  >
+                    Убрать
+                  </button>
+                  <Link
+                    href="/app/universities"
+                    className="text-sm font-bold text-brand-700 hover:underline"
+                  >
+                    Подробнее
+                  </Link>
+                </div>
               </li>
             );
           })}

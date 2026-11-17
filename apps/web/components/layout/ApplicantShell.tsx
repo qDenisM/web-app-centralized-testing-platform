@@ -24,11 +24,6 @@ export function ApplicantShell({ children }: ApplicantShellProps) {
       headerBadge={<CompetitiveScoreBadge />}
       profileLinks={[
         {
-          href: "/app/profile",
-          label: "Профиль и аттестат",
-          icon: "profile",
-        },
-        {
           href: "/app/favorites",
           label: "Избранные специальности",
           icon: "favorites",

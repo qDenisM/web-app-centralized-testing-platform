@@ -21,7 +21,7 @@ export function CabinetFooter({
 }: CabinetFooterProps) {
   return (
     <footer className="mt-auto border-t border-border bg-white">
-      <div className="mx-auto grid w-full max-w-[1280px] gap-8 px-4 py-10 md:grid-cols-4 md:px-8 lg:gap-10">
+      <div className="mx-auto grid w-full gap-8 px-4 py-10 md:grid-cols-4 md:px-8 lg:gap-10">
         <div>
           <Logo />
           <p className="mt-3 max-w-[260px] text-xs leading-relaxed text-text-muted">
@@ -81,7 +81,7 @@ export function CabinetFooter({
         </div>
       </div>
       <div className="border-t border-border bg-[#f8fafc]">
-        <div className="mx-auto w-full max-w-[1280px] px-4 py-4 text-xs text-text-muted md:px-8">
+        <div className="mx-auto w-full px-4 py-4 text-xs text-text-muted md:px-8">
           © 2026 Ориентир · Информационный портал для абитуриентов
         </div>
       </div>

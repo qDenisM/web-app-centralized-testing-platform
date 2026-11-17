@@ -1,5 +1,4 @@
-import { cookies } from "next/headers";
-import { ACCESS_COOKIE } from "@/lib/auth";
+import { getAccessToken } from "@/lib/session";
 import { getChancesUrl } from "@/lib/chances";
 
 type ErrorBody = {
@@ -12,8 +11,7 @@ export async function chancesFetch<T>(
 ): Promise<
   { ok: true; status: number; data: T } | { ok: false; status: number; error: string }
 > {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(ACCESS_COOKIE)?.value;
+  const token = await getAccessToken();
 
   if (!token) {
     return { ok: false, status: 401, error: "Нужна авторизация" };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   fundingLabel,
   institutionTypeLabel,
@@ -11,6 +11,10 @@ import {
 } from "@/lib/catalog";
 import type { ChanceResult, ChanceStatus, Favorite } from "@/lib/chances";
 import { catalogChanceLabel } from "@/lib/chances-display";
+import {
+  ChevronDown,
+  FilterSelect,
+} from "@/components/ui/FilterSelect";
 import { cn } from "@/lib/utils";
 
 type UniversitiesCatalogProps = {
@@ -34,6 +38,163 @@ const emptyFilters = {
 
 const fieldClass =
   "w-full rounded-[10px] border border-border bg-white px-3 py-2.5 text-sm text-text-primary outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100";
+
+function RadioMark({ checked }: { checked: boolean }) {
+  return (
+    <span
+      className={cn(
+        "flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border-[1.5px]",
+        checked ? "border-brand-700" : "border-brand-500/70",
+      )}
+      aria-hidden
+    >
+      {checked ? <span className="h-1.5 w-1.5 rounded-full bg-brand-700" /> : null}
+    </span>
+  );
+}
+
+function SubjectsMultiSelect({
+  subjects,
+  value,
+  onChange,
+}: {
+  subjects: CatalogSubject[];
+  value: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDoc(e: MouseEvent) {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const selected = useMemo(() => {
+    const set = new Set(value);
+    return subjects.filter((s) => set.has(s.id));
+  }, [subjects, value]);
+
+  const label =
+    selected.length === 0
+      ? "Все предметы"
+      : selected.map((s) => s.name).join(", ");
+
+  function toggle(id: string) {
+    if (value.includes(id)) onChange(value.filter((x) => x !== id));
+    else onChange([...value, id]);
+  }
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          fieldClass,
+          "flex items-center justify-between gap-2 text-left",
+          open && "border-brand-500 ring-2 ring-brand-100",
+        )}
+      >
+        <span
+          className={cn(
+            "min-w-0 flex-1 truncate",
+            selected.length === 0 && "text-text-muted",
+          )}
+        >
+          {label}
+        </span>
+        <ChevronDown
+          className={cn("transition-transform", open && "rotate-180")}
+        />
+      </button>
+
+      {open ? (
+        <div
+          role="listbox"
+          aria-multiselectable
+          className="absolute z-30 mt-1 max-h-56 w-full overflow-auto rounded-[10px] border border-border bg-white py-1 shadow-[var(--shadow-soft)]"
+        >
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-text-secondary hover:bg-[#f4f7f9]"
+            onClick={() => onChange([])}
+          >
+            <span
+              className={cn(
+                "flex h-4 w-4 items-center justify-center rounded border",
+                value.length === 0
+                  ? "border-brand-700 bg-brand-700 text-white"
+                  : "border-border bg-white",
+              )}
+            >
+              {value.length === 0 ? (
+                <svg className="h-3 w-3" viewBox="0 0 12 12" fill="none">
+                  <path
+                    d="M2.5 6L5 8.5L9.5 3.5"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              ) : null}
+            </span>
+            Все предметы
+          </button>
+          {subjects.map((s) => {
+            const checked = value.includes(s.id);
+            return (
+              <button
+                key={s.id}
+                type="button"
+                role="option"
+                aria-selected={checked}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-text-primary hover:bg-[#f4f7f9]"
+                onClick={() => toggle(s.id)}
+              >
+                <span
+                  className={cn(
+                    "flex h-4 w-4 shrink-0 items-center justify-center rounded border",
+                    checked
+                      ? "border-brand-700 bg-brand-700 text-white"
+                      : "border-border bg-white",
+                  )}
+                >
+                  {checked ? (
+                    <svg className="h-3 w-3" viewBox="0 0 12 12" fill="none">
+                      <path
+                        d="M2.5 6L5 8.5L9.5 3.5"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  ) : null}
+                </span>
+                {s.name}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export function UniversitiesCatalog({
   specialties,
@@ -315,35 +476,26 @@ export function UniversitiesCatalog({
               />
             </label>
 
-            <label className="block space-y-1">
+            <div className="block space-y-1">
               <span className="text-xs font-semibold text-text-secondary">
                 Необходимые предметы ЦТ
               </span>
-              <select
-                className={fieldClass}
-                value={filters.subjectIds[0] || ""}
-                onChange={(e) =>
-                  setFilters((f) => ({
-                    ...f,
-                    subjectIds: e.target.value ? [e.target.value] : [],
-                  }))
+              <SubjectsMultiSelect
+                subjects={subjects}
+                value={filters.subjectIds}
+                onChange={(subjectIds) =>
+                  setFilters((f) => ({ ...f, subjectIds }))
                 }
-              >
-                <option value="">Все предметы</option>
-                {subjects.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+              />
+            </div>
 
             <label className="block space-y-1">
               <span className="text-xs font-semibold text-text-secondary">Город</span>
-              <select
-                className={fieldClass}
+              <FilterSelect
                 value={filters.city}
-                onChange={(e) => setFilters((f) => ({ ...f, city: e.target.value }))}
+                onChange={(e) =>
+                  setFilters((f) => ({ ...f, city: e.target.value }))
+                }
               >
                 <option value="">Все города</option>
                 {cities.map((city) => (
@@ -351,66 +503,78 @@ export function UniversitiesCatalog({
                     {city}
                   </option>
                 ))}
-              </select>
+              </FilterSelect>
             </label>
 
             <div className="space-y-1.5">
-              <span className="text-xs font-semibold text-text-secondary">
+              <span className="text-sm font-bold text-text-primary">
                 Основа обучения
               </span>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-2 gap-2.5">
                 {(
                   [
-                    ["", "Все"],
                     ["budget", "Бюджет"],
                     ["paid", "Платное"],
                   ] as const
-                ).map(([value, label]) => (
-                  <button
-                    key={value || "all"}
-                    type="button"
-                    onClick={() => setFilters((f) => ({ ...f, funding: value }))}
-                    className={cn(
-                      "flex-1 rounded-[10px] border px-2 py-2 text-xs font-bold",
-                      filters.funding === value
-                        ? "border-brand-700 bg-brand-100 text-brand-900"
-                        : "border-border text-text-secondary hover:bg-[#f8fafc]",
-                    )}
-                  >
-                    {label}
-                  </button>
-                ))}
+                ).map(([value, label]) => {
+                  const checked = filters.funding === value;
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      role="radio"
+                      aria-checked={checked}
+                      onClick={() =>
+                        setFilters((f) => ({
+                          ...f,
+                          funding: f.funding === value ? "" : value,
+                        }))
+                      }
+                      className={cn(
+                        "flex items-center justify-between gap-2 rounded-[10px] border bg-white px-3.5 py-2.5 text-left text-sm font-semibold transition-colors",
+                        checked
+                          ? "border-brand-600 text-text-primary"
+                          : "border-border text-text-primary hover:border-brand-400",
+                      )}
+                    >
+                      <span>{label}</span>
+                      <RadioMark checked={checked} />
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            <label className="block space-y-1">
-              <span className="text-xs font-semibold text-text-secondary">Форма</span>
-              <select
-                className={fieldClass}
-                value={filters.studyForm}
-                onChange={(e) =>
-                  setFilters((f) => ({ ...f, studyForm: e.target.value }))
-                }
-              >
-                <option value="">Любая</option>
-                <option value="fulltime">Очное</option>
-                <option value="parttime">Заочное</option>
-                <option value="distance">Дистанционное</option>
-              </select>
-            </label>
+            <div className="grid grid-cols-2 gap-2.5">
+              <label className="block space-y-1.5">
+                <span className="text-sm font-bold text-text-primary">Формат</span>
+                <FilterSelect
+                  value={filters.studyForm}
+                  onChange={(e) =>
+                    setFilters((f) => ({ ...f, studyForm: e.target.value }))
+                  }
+                >
+                  <option value="">Любой</option>
+                  <option value="fulltime">Очное</option>
+                  <option value="parttime">Заочное</option>
+                  <option value="distance">Дистанционное</option>
+                </FilterSelect>
+              </label>
 
-            <label className="block space-y-1">
-              <span className="text-xs font-semibold text-text-secondary">Тип</span>
-              <select
-                className={fieldClass}
-                value={filters.type}
-                onChange={(e) => setFilters((f) => ({ ...f, type: e.target.value }))}
-              >
-                <option value="">Все</option>
-                <option value="university">ВУЗ</option>
-                <option value="college">Колледж</option>
-              </select>
-            </label>
+              <label className="block space-y-1.5">
+                <span className="text-sm font-bold text-text-primary">Тип</span>
+                <FilterSelect
+                  value={filters.type}
+                  onChange={(e) =>
+                    setFilters((f) => ({ ...f, type: e.target.value }))
+                  }
+                >
+                  <option value="">Все</option>
+                  <option value="university">ВУЗ</option>
+                  <option value="college">Колледж</option>
+                </FilterSelect>
+              </label>
+            </div>
 
             <div className="space-y-2 border-t border-border pt-3">
               <span className="text-xs font-semibold text-text-secondary">
@@ -469,15 +633,15 @@ export function UniversitiesCatalog({
             </p>
             <label className="flex items-center gap-2 text-sm text-text-secondary">
               <span>Сортировка:</span>
-              <select
-                className="rounded-[10px] border border-border bg-white px-3 py-2 text-sm"
+              <FilterSelect
+                className="w-auto min-w-[220px]"
                 value={sort}
                 onChange={(e) => setSort(e.target.value as SortMode)}
               >
                 <option value="score-desc">Проходной балл (убыв.)</option>
                 <option value="score-asc">Проходной балл (возр.)</option>
                 <option value="name">По названию</option>
-              </select>
+              </FilterSelect>
             </label>
           </div>
 
@@ -497,10 +661,10 @@ export function UniversitiesCatalog({
                 const gapText =
                   gap == null
                     ? null
-                    : gap > 0
-                      ? `не хватает ${gap}`
-                      : gap < 0
-                        ? `запас ${Math.abs(gap)}`
+                    : gap < 0
+                      ? `не хватает ${Math.abs(gap)}`
+                      : gap > 0
+                        ? `запас ${gap}`
                         : "вровень";
 
                 return (
@@ -581,8 +745,8 @@ export function UniversitiesCatalog({
                               accent.percent,
                             )}
                           >
-                            {chance?.probability != null
-                              ? `${Math.round(chance.probability * 100)}%`
+                            {chance
+                              ? `${Math.round(chance.probability ?? 0)}%`
                               : "—"}
                           </div>
                         </div>

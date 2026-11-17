@@ -37,9 +37,7 @@ export function proxy(request: NextRequest) {
   }
 
   if (isAuthPage(pathname) && loggedIn) {
-    return NextResponse.redirect(
-      new URL(homePathForRole(role), request.url),
-    );
+    return NextResponse.redirect(new URL(homePathForRole(role), request.url));
   }
 
   if (isProtectedPath(pathname) && loggedIn && role) {
@@ -55,9 +53,13 @@ export const config = {
   matcher: [
     "/login",
     "/register",
+    "/app",
     "/app/:path*",
+    "/admin",
     "/admin/:path*",
+    "/moderator",
     "/moderator/:path*",
+    "/examiner",
     "/examiner/:path*",
   ],
 };
