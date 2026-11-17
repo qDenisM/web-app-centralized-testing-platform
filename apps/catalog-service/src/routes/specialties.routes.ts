@@ -229,6 +229,76 @@ specialtiesRoutes.delete(
   },
 );
 
+const SpecialtySubjectsReplaceSchema = z.object({
+  subjects: z
+    .array(
+      z.object({
+        subjectId: z.string().uuid(),
+        slot: z.number().int().positive(),
+        minScore: z.number().int().nonnegative().optional(),
+      }),
+    )
+    .max(10),
+});
+
+specialtiesRoutes.put(
+  "/admin/specialties/:id/subjects",
+  ...requireAdmin,
+  validate(SpecialtySubjectsReplaceSchema),
+  async (req, res, next) => {
+    try {
+      const specialtyId = String(req.params.id);
+      const body = SpecialtySubjectsReplaceSchema.parse(req.body);
+      const specialty = await prisma.specialty.findUnique({
+        where: { id: specialtyId },
+      });
+      if (!specialty) {
+        throw AppError.notFound("Specialty not found");
+      }
+
+      const slots = body.subjects.map((s) => s.slot);
+      if (new Set(slots).size !== slots.length) {
+        throw AppError.badRequest("Duplicate subject slots");
+      }
+
+      const subjectIds = [...new Set(body.subjects.map((s) => s.subjectId))];
+      if (subjectIds.length > 0) {
+        const found = await prisma.subject.findMany({
+          where: { id: { in: subjectIds } },
+          select: { id: true },
+        });
+        if (found.length !== subjectIds.length) {
+          throw AppError.badRequest("Subject not found");
+        }
+      }
+
+      await prisma.$transaction([
+        prisma.specialtySubject.deleteMany({ where: { specialtyId } }),
+        ...(body.subjects.length > 0
+          ? [
+              prisma.specialtySubject.createMany({
+                data: body.subjects.map((s) => ({
+                  specialtyId,
+                  subjectId: s.subjectId,
+                  slot: s.slot,
+                  minScore: s.minScore ?? 0,
+                })),
+              }),
+            ]
+          : []),
+      ]);
+
+      const row = await prisma.specialty.findUnique({
+        where: { id: specialtyId },
+        include: specialtyInclude,
+      });
+      res.status(200).json(specialtyJson(row!));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
 const PassingScoreBodySchema = z.object({
   year: z.number().int().min(2000).max(2100),
   score: z.number().int().nonnegative(),

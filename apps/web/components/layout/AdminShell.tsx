@@ -8,7 +8,12 @@ const navItems = [
   { href: "/admin", label: "Обзор", exact: true, icon: "overview" as const },
   { href: "/admin/users", label: "Пользователи", icon: "users" as const },
   { href: "/admin/campaign", label: "Приёмная кампания", icon: "campaign" as const },
-  { href: "/admin/universities", label: "Вузы и колледжи", icon: "universities" as const },
+  {
+    href: "/admin/universities",
+    label: "Вузы и колледжи",
+    icon: "universities" as const,
+    section: "Справочники РБ",
+  },
   { href: "/admin/specialties", label: "Специальности", icon: "specialty" as const },
   { href: "/admin/subjects", label: "Предметы ЦТ", icon: "subject" as const },
 ];

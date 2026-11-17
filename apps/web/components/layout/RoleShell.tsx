@@ -18,6 +18,8 @@ export type RoleNavItem = {
   label: string;
   exact?: boolean;
   icon?: NavIconName;
+  /** Optional section header rendered above this item in the sidebar */
+  section?: string;
 };
 
 type RoleShellProps = {
@@ -108,19 +110,25 @@ export function RoleShell({
               {navItems.map((item) => {
                 const active = isActive(pathname, item);
                 return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={cn(
-                      "flex items-center gap-2.5 rounded-[10px] px-3.5 py-2.5 text-sm font-semibold transition-colors",
-                      active
-                        ? "bg-brand-100 text-brand-900"
-                        : "text-text-secondary hover:bg-[#f4f7f9] hover:text-text-primary",
-                    )}
-                  >
-                    {item.icon ? <NavIcon name={item.icon} /> : null}
-                    {item.label}
-                  </Link>
+                  <div key={item.href}>
+                    {item.section ? (
+                      <div className="px-3.5 pb-1.5 pt-4 text-[10px] font-extrabold uppercase tracking-wide text-text-muted">
+                        {item.section}
+                      </div>
+                    ) : null}
+                    <Link
+                      href={item.href}
+                      className={cn(
+                        "flex items-center gap-2.5 rounded-[10px] border-l-[3px] px-3.5 py-2.5 text-sm font-semibold transition-colors",
+                        active
+                          ? "border-brand-700 bg-brand-100 text-brand-900"
+                          : "border-transparent text-text-secondary hover:bg-[#f4f7f9] hover:text-text-primary",
+                      )}
+                    >
+                      {item.icon ? <NavIcon name={item.icon} /> : null}
+                      {item.label}
+                    </Link>
+                  </div>
                 );
               })}
             </nav>

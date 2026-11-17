@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { catalogFetch, catalogPublicGet } from "@/lib/catalog-api";
+import { catalogFetch } from "@/lib/catalog-api";
 import type { Subject } from "@/lib/admin";
 
 export async function GET() {
-  const result = await catalogPublicGet<Subject[]>("/subjects");
+  const result = await catalogFetch<Subject[]>("/admin/subjects");
   if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: 500 });
+    return NextResponse.json({ error: result.error }, { status: result.status });
   }
   return NextResponse.json(result.data);
 }

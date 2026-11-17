@@ -8,9 +8,11 @@ type ModalProps = {
   open: boolean;
   onClose: () => void;
   title: string;
+  subtitle?: string;
+  leading?: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "xl";
   className?: string;
 };
 
@@ -18,12 +20,15 @@ const sizes = {
   sm: "max-w-md",
   md: "max-w-lg",
   lg: "max-w-2xl",
+  xl: "max-w-3xl",
 };
 
 export function Modal({
   open,
   onClose,
   title,
+  subtitle,
+  leading,
   children,
   footer,
   size = "md",
@@ -67,9 +72,20 @@ export function Modal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
-          <h2 id="modal-title" className="text-lg font-extrabold text-brand-900">
-            {title}
-          </h2>
+          <div className="flex min-w-0 items-start gap-3">
+            {leading ? <div className="mt-0.5 shrink-0">{leading}</div> : null}
+            <div className="min-w-0">
+              <h2
+                id="modal-title"
+                className="text-lg font-extrabold text-brand-900"
+              >
+                {title}
+              </h2>
+              {subtitle ? (
+                <p className="mt-1 text-sm text-text-secondary">{subtitle}</p>
+              ) : null}
+            </div>
+          </div>
           <button
             type="button"
             onClick={onClose}
@@ -80,7 +96,7 @@ export function Modal({
         </div>
         <div className="overflow-y-auto px-5 py-4">{children}</div>
         {footer ? (
-          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border bg-[#f8fafc] px-5 py-4">
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border bg-[#f8fafc] px-3 py-3">
             {footer}
           </div>
         ) : null}

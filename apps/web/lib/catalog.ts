@@ -9,6 +9,7 @@ export type CatalogInstitution = {
   fullName: string;
   address: string | null;
   city: string | null;
+  website?: string | null;
   isPublished: boolean;
 };
 

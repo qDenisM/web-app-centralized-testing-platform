@@ -107,7 +107,10 @@ export type Institution = {
   fullName: string;
   address: string | null;
   city: string | null;
+  website?: string | null;
   isPublished: boolean;
+  /** Present on admin list responses */
+  specialtiesCount?: number;
 };
 
 export type Subject = {
@@ -115,6 +118,8 @@ export type Subject = {
   name: string;
   shortCode: string;
   status: string;
+  /** Present on admin list responses */
+  usageCount?: number;
 };
 
 export type PassingScore = {
@@ -123,6 +128,15 @@ export type PassingScore = {
   year: number;
   score: number;
   competition: number | null;
+};
+
+export type SpecialtySubject = {
+  id: string;
+  specialtyId: string;
+  subjectId: string;
+  slot: number;
+  minScore: number;
+  subject?: Subject;
 };
 
 export type Specialty = {
@@ -136,6 +150,7 @@ export type Specialty = {
   contentMode: string;
   isPublished: boolean;
   institution?: Institution;
+  subjects?: SpecialtySubject[];
   passingScores?: PassingScore[];
 };
 

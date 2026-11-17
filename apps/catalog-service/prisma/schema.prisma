@@ -15,6 +15,7 @@ model Institution {
   fullName    String  @map("full_name")
   address     String?
   city        String?
+  website     String?
   isPublished Boolean @default(false) @map("is_published")
 
   specialties Specialty[]

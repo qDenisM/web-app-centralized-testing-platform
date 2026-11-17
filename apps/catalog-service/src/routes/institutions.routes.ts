@@ -13,6 +13,7 @@ const InstitutionBodySchema = z.object({
   fullName: z.string().min(1),
   address: z.string().nullable().optional(),
   city: z.string().nullable().optional(),
+  website: z.string().nullable().optional(),
   isPublished: z.boolean().optional(),
 });
 
@@ -49,8 +50,14 @@ institutionsRoutes.get(
     try {
       const rows = await prisma.institution.findMany({
         orderBy: { shortName: "asc" },
+        include: { _count: { select: { specialties: true } } },
       });
-      res.status(200).json(rows.map(institutionJson));
+      res.status(200).json(
+        rows.map((row) => ({
+          ...institutionJson(row),
+          specialtiesCount: row._count.specialties,
+        })),
+      );
     } catch (err) {
       next(err);
     }
@@ -71,6 +78,7 @@ institutionsRoutes.post(
           fullName: body.fullName,
           address: body.address ?? null,
           city: body.city ?? null,
+          website: body.website ?? null,
           isPublished: body.isPublished ?? false,
         },
       });

@@ -16,6 +16,7 @@ export function institutionJson(row: Institution) {
     fullName: row.fullName,
     address: row.address,
     city: row.city,
+    website: row.website,
     isPublished: row.isPublished,
   };
 }
