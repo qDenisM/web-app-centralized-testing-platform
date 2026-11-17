@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { AppError, validate } from "@abiturent/service-kit";
+import { reportAudit } from "../audit.js";
 import { requireApplicant } from "../auth.js";
 import { config } from "../config.js";
 import { prisma } from "../db.js";
@@ -108,6 +109,15 @@ profilesRoutes.put(
         include: profileInclude,
       });
 
+      reportAudit({
+        actorId: userId,
+        targetId: userId,
+        action: "profile_update",
+        payload: {
+          fields: Object.keys(body),
+        },
+      });
+
       res.status(200).json(profileJson(profile));
     } catch (err) {
       next(err);
@@ -189,6 +199,16 @@ profilesRoutes.post(
             : {}),
         },
         include: profileInclude,
+      });
+
+      reportAudit({
+        actorId: userId,
+        targetId: userId,
+        action: "attestat_confirm",
+        payload: {
+          storageKey: body.storageKey,
+          attestatAverage: body.attestatAverage ?? null,
+        },
       });
 
       res.status(200).json(profileJson(profile));
@@ -299,6 +319,13 @@ profilesRoutes.post(
       const updated = await prisma.applicantProfile.findUnique({
         where: { userId },
         include: profileInclude,
+      });
+
+      reportAudit({
+        actorId: userId,
+        targetId: userId,
+        action: "verification_submit",
+        payload: { verificationId: latest.id },
       });
 
       res.status(200).json(profileJson(updated!));

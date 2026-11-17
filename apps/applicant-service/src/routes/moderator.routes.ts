@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { AppError, validate } from "@abiturent/service-kit";
+import { reportAudit } from "../audit.js";
 import { requireModerator } from "../auth.js";
 import { prisma } from "../db.js";
 import { publishVerificationDecided } from "../notify.js";
@@ -161,6 +162,21 @@ moderatorRoutes.post(
           decidedAt: new Date(),
         },
         include: { profile: true },
+      });
+
+      reportAudit({
+        actorId: moderatorId,
+        targetId: updated.profile.userId,
+        action:
+          body.decision === "approved"
+            ? "verification_approved"
+            : body.decision === "returned"
+              ? "verification_returned"
+              : "verification_rejected",
+        payload: {
+          verificationId: updated.id,
+          reason: rejectReason,
+        },
       });
 
       await publishVerificationDecided({

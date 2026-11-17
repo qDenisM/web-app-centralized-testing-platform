@@ -54,7 +54,11 @@ export const LogoutRequestSchema = z.object({
 export type LogoutRequest = z.infer<typeof LogoutRequestSchema>;
 
 export const BlockUserRequestSchema = z.object({
-  reason: z.string().min(2).max(500),
+  reason: z
+    .string()
+    .trim()
+    .min(2, "Причина блокировки должна содержать минимум 2 символа")
+    .max(500, "Причина блокировки слишком длинная"),
   blockedUntil: z.string().datetime().optional().nullable(),
 });
 

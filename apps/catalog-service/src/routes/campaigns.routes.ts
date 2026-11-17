@@ -12,11 +12,15 @@ const CampaignBodySchema = z.object({
   isActive: z.boolean().optional(),
 });
 
+const StageStatusOverrideSchema = z.enum(["done", "active", "upcoming"]).nullable();
+
 const CampaignStageBodySchema = z.object({
   sortOrder: z.number().int().positive(),
   name: z.string().min(1),
+  description: z.string().nullable().optional(),
   startsOn: z.string().min(1),
   endsOn: z.string().min(1),
+  statusOverride: StageStatusOverrideSchema.optional(),
 });
 
 const campaignInclude = {
@@ -158,8 +162,14 @@ campaignsRoutes.post(
           campaignId,
           sortOrder: body.sortOrder,
           name: body.name,
+          description:
+            body.description === undefined || body.description === null
+              ? null
+              : body.description.trim(),
           startsOn: new Date(body.startsOn),
           endsOn: new Date(body.endsOn),
+          statusOverride:
+            body.statusOverride === undefined ? null : body.statusOverride,
         },
       });
       res.status(201).json(campaignStageJson(stage));
@@ -186,10 +196,19 @@ campaignsRoutes.patch(
         data: {
           ...(body.sortOrder !== undefined ? { sortOrder: body.sortOrder } : {}),
           ...(body.name !== undefined ? { name: body.name } : {}),
+          ...(body.description !== undefined
+            ? {
+                description:
+                  body.description === null ? null : body.description.trim(),
+              }
+            : {}),
           ...(body.startsOn !== undefined
             ? { startsOn: new Date(body.startsOn) }
             : {}),
           ...(body.endsOn !== undefined ? { endsOn: new Date(body.endsOn) } : {}),
+          ...(body.statusOverride !== undefined
+            ? { statusOverride: body.statusOverride }
+            : {}),
         },
       });
       res.status(200).json(campaignStageJson(stage));

@@ -14,17 +14,20 @@ import {
 
 export const usersRoutes = Router();
 
-function userAdminJson(user: {
-  id: string;
-  email: string;
-  fullName: string;
-  phone: string | null;
-  role: string;
-  status: string;
-  blockedReason: string | null;
-  blockedUntil: Date | null;
-  createdAt: Date;
-}) {
+function userAdminJson(
+  user: {
+    id: string;
+    email: string;
+    fullName: string;
+    phone: string | null;
+    role: string;
+    status: string;
+    blockedReason: string | null;
+    blockedUntil: Date | null;
+    createdAt: Date;
+  },
+  lastLoginAt?: Date | null,
+) {
   return {
     id: user.id,
     email: user.email,
@@ -35,6 +38,7 @@ function userAdminJson(user: {
     blockedReason: user.blockedReason,
     blockedUntil: user.blockedUntil?.toISOString() ?? null,
     createdAt: user.createdAt.toISOString(),
+    lastLoginAt: lastLoginAt ? lastLoginAt.toISOString() : null,
   };
 }
 
@@ -184,6 +188,15 @@ usersRoutes.post(
         ? new Date(body.blockedUntil)
         : null;
 
+      if (blockedUntil && Number.isNaN(blockedUntil.getTime())) {
+        throw AppError.badRequest("Некорректная дата окончания блокировки");
+      }
+      if (blockedUntil && blockedUntil.getTime() <= Date.now()) {
+        throw AppError.badRequest(
+          "Дата окончания блокировки должна быть в будущем",
+        );
+      }
+
       const updated = await prisma.user.update({
         where: { id: targetId },
         data: {
@@ -259,9 +272,20 @@ usersRoutes.get(
       const rows = await prisma.user.findMany({
         where,
         orderBy: { createdAt: "desc" },
+        include: {
+          sessions: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { createdAt: true },
+          },
+        },
       });
 
-      res.status(200).json({ items: rows.map(userAdminJson) });
+      res.status(200).json({
+        items: rows.map((row) =>
+          userAdminJson(row, row.sessions[0]?.createdAt ?? null),
+        ),
+      });
     } catch (err) {
       next(err);
     }
@@ -358,8 +382,11 @@ usersRoutes.get(
       }
 
       const rows = await prisma.auditLog.findMany({
-        where: { targetId },
+        where: {
+          OR: [{ targetId }, { actorId: targetId }],
+        },
         orderBy: { createdAt: "desc" },
+        take: 200,
         include: {
           actor: {
             select: { id: true, email: true, fullName: true },

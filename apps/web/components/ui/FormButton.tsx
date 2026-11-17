@@ -22,11 +22,17 @@ export function FormButton({
   type = "submit",
   ...props
 }: FormButtonProps) {
+  // Default full width only when caller does not override width.
+  const hasWidthOverride =
+    typeof className === "string" &&
+    /(^|\s)!?w-/.test(className);
+
   return (
     <button
       type={type}
       className={cn(
-        "inline-flex w-full items-center justify-center rounded-[10px] px-5 py-3 text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-70",
+        "inline-flex items-center justify-center rounded-[10px] px-5 py-3 text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-70",
+        !hasWidthOverride && "w-full",
         variants[variant],
         className,
       )}

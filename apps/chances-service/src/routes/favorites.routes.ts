@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { AppError, validate } from "@abiturent/service-kit";
+import { reportAudit } from "../audit.js";
 import { requireApplicant } from "../auth.js";
 import { prisma } from "../db.js";
 import { favoriteJson } from "../serializers.js";
@@ -55,6 +56,13 @@ favoritesRoutes.post(
         update: {},
       });
 
+      reportAudit({
+        actorId: userId,
+        targetId: userId,
+        action: "favorite_add",
+        payload: { specialtyId: body.specialtyId },
+      });
+
       res.status(201).json(favoriteJson(row));
     } catch (err) {
       next(err);
@@ -82,6 +90,13 @@ favoritesRoutes.delete(
 
       await prisma.favorite.delete({
         where: { id: row.id },
+      });
+
+      reportAudit({
+        actorId: userId,
+        targetId: userId,
+        action: "favorite_remove",
+        payload: { specialtyId },
       });
 
       res.status(204).end();

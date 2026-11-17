@@ -18,6 +18,8 @@ const EnvSchema = z.object({
   APPLICANT_URL: z.string().url().default("http://localhost:3003"),
   RESULTS_URL: z.string().url().default("http://localhost:3005"),
   EXAM_URL: z.string().url().default("http://localhost:3004"),
+  IDENTITY_URL: z.string().url().default("http://localhost:3001"),
+  INTERNAL_AUDIT_TOKEN: z.string().min(1).default("dev-audit-token"),
 });
 
 const parsed = EnvSchema.parse(process.env);
@@ -34,4 +36,6 @@ export const config = {
   applicantUrl: parsed.APPLICANT_URL.replace(/\/$/, ""),
   resultsUrl: parsed.RESULTS_URL.replace(/\/$/, ""),
   examUrl: parsed.EXAM_URL.replace(/\/$/, ""),
+  identityUrl: parsed.IDENTITY_URL.replace(/\/$/, ""),
+  internalAuditToken: parsed.INTERNAL_AUDIT_TOKEN,
 };

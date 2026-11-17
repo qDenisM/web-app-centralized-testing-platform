@@ -3,13 +3,15 @@ import { getIdentityUrl } from "@/lib/api";
 
 type ErrorBody = {
   error?: string;
+  details?: unknown;
 };
 
 export async function identityFetch<T>(
   path: string,
   init?: RequestInit,
 ): Promise<
-  { ok: true; status: number; data: T } | { ok: false; status: number; error: string }
+  | { ok: true; status: number; data: T }
+  | { ok: false; status: number; error: string; details?: unknown }
 > {
   const token = await getAccessToken();
 
@@ -50,6 +52,7 @@ export async function identityFetch<T>(
       ok: false,
       status: res.status,
       error: errBody?.error || text || "Ошибка identity-service",
+      details: errBody?.details,
     };
   }
 

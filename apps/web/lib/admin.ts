@@ -8,6 +8,7 @@ export type AdminUser = {
   blockedReason: string | null;
   blockedUntil: string | null;
   createdAt: string;
+  lastLoginAt?: string | null;
 };
 
 export type AuditLogItem = {
@@ -36,6 +37,36 @@ export function auditActionLabel(action: string): string {
       return "Выход";
     case "register":
       return "Регистрация";
+    case "token_refresh":
+      return "Обновление токена";
+    case "ct_apply":
+      return "Запись на ЦТ";
+    case "ct_cancel":
+      return "Отмена записи на ЦТ";
+    case "ct_waitlist_join":
+      return "Лист ожидания ЦТ";
+    case "ct_waitlist_cancel":
+      return "Выход из листа ожидания";
+    case "ct_approved":
+      return "Одобрение записи на ЦТ";
+    case "ct_rejected":
+      return "Отказ в записи на ЦТ";
+    case "attestat_confirm":
+      return "Сохранение аттестата";
+    case "profile_update":
+      return "Изменение профиля";
+    case "verification_submit":
+      return "Отправка анкеты на проверку";
+    case "verification_approved":
+      return "Анкета одобрена";
+    case "verification_returned":
+      return "Анкета возвращена";
+    case "verification_rejected":
+      return "Анкета отклонена";
+    case "favorite_add":
+      return "Добавление в избранное";
+    case "favorite_remove":
+      return "Удаление из избранного";
     default:
       return action;
   }
@@ -50,10 +81,23 @@ export type IdentityAdminStats = {
 
 export type CatalogAdminStats = {
   institutions: number;
+  institutionsUniversity?: number;
+  institutionsCollege?: number;
+  institutionsPublished?: number;
+  institutionsHidden?: number;
   specialties: number;
+  specialtiesBudget?: number;
+  specialtiesPaid?: number;
+  specialtiesWithoutPassingScore?: number;
+  specialtiesWithoutPassingScoreSamples?: Array<{
+    id: string;
+    name: string;
+    institutionShortName: string | null;
+  }>;
   subjects: number;
   campaigns: number;
   passingScores: number;
+  activeCampaignYear?: number;
 };
 
 export type Institution = {
@@ -95,13 +139,18 @@ export type Specialty = {
   passingScores?: PassingScore[];
 };
 
+export type StageStatusOverride = "done" | "active" | "upcoming";
+
 export type CampaignStage = {
   id: string;
   campaignId: string;
   sortOrder: number;
   name: string;
+  description?: string | null;
   startsOn: string;
   endsOn: string;
+  /** Manual status. Null/undefined = compute from dates. */
+  statusOverride?: StageStatusOverride | null;
 };
 
 export type Campaign = {

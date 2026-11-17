@@ -83,8 +83,10 @@ export function campaignStageJson(row: CampaignStage) {
     campaignId: row.campaignId,
     sortOrder: row.sortOrder,
     name: row.name,
+    description: row.description ?? null,
     startsOn: row.startsOn.toISOString().slice(0, 10),
     endsOn: row.endsOn.toISOString().slice(0, 10),
+    statusOverride: row.statusOverride ?? null,
   };
 }
 

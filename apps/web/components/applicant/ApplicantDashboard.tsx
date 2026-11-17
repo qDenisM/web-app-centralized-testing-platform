@@ -21,6 +21,7 @@ type CampaignStage = {
   name: string;
   startsOn: string;
   endsOn: string;
+  statusOverride?: "done" | "active" | "upcoming" | null;
 };
 
 type ActiveCampaign = {
@@ -103,12 +104,27 @@ const STAGE_TONES = {
   },
 } as const satisfies Record<string, StageTone>;
 
+function toneFromOverride(
+  override: CampaignStage["statusOverride"],
+): StageTone | null {
+  if (override === "done") return STAGE_TONES.done;
+  if (override === "active") return STAGE_TONES.current;
+  if (override === "upcoming") return STAGE_TONES.expected;
+  return null;
+}
+
 /**
  * Green = past, blue = current, yellow = next upcoming,
- * gray = after "expected" or campaign already finished (locked).
+ * gray = locked future stages after the next expected one.
+ * When all stage dates are over, every stage is "done" (not locked).
+ * Manual statusOverride on a stage wins over date-based tone.
  */
 function stageToneFor(
-  stages: Array<{ start: number; end: number }>,
+  stages: Array<{
+    start: number;
+    end: number;
+    statusOverride?: CampaignStage["statusOverride"];
+  }>,
   index: number,
   now: number,
   lifecycle: CampaignLifecycle,
@@ -116,12 +132,10 @@ function stageToneFor(
   const stage = stages[index];
   if (!stage) return STAGE_TONES.locked;
 
-  // Whole campaign is over → stages are locked/unavailable (gray).
-  if (lifecycle === "completed") {
-    return STAGE_TONES.locked;
-  }
+  const overridden = toneFromOverride(stage.statusOverride);
+  if (overridden) return overridden;
 
-  if (now > stage.end) {
+  if (lifecycle === "completed" || now > stage.end) {
     return STAGE_TONES.done;
   }
   if (now >= stage.start && now <= stage.end) {
@@ -129,7 +143,9 @@ function stageToneFor(
   }
 
   // First future stage is "expected"; anything after it is locked.
-  const nextIdx = stages.findIndex((s) => now < s.start);
+  const nextIdx = stages.findIndex(
+    (s) => !s.statusOverride && now < s.start,
+  );
   if (nextIdx === index) {
     return STAGE_TONES.expected;
   }
@@ -401,24 +417,29 @@ export function ApplicantDashboard() {
               lifecycle === "active" &&
                 "border-[#1F8A58]/20 bg-[#E4F6EC] text-[#176B45]",
               lifecycle === "completed" &&
-                "border-[#C94343]/25 bg-[#FDECEC] text-[#9B2C2C]",
+                "border-[#2F6FAE]/25 bg-[#E7F0F8] text-[#2F6FAE]",
               lifecycle === "upcoming" &&
                 "border-[#C6900A]/25 bg-[#FFF4D6] text-[#9A6B00]",
             )}
+            title={
+              campaign.isActive
+                ? "Кампания отмечена активной у администратора (isActive)"
+                : undefined
+            }
           >
             <span
               className={cn(
                 "h-2 w-2 rounded-full",
                 lifecycle === "active" && "bg-[#1F8A58]",
-                lifecycle === "completed" && "bg-[#C94343]",
+                lifecycle === "completed" && "bg-[#2F6FAE]",
                 lifecycle === "upcoming" && "bg-[#C6900A]",
               )}
             />
             {lifecycle === "active"
-              ? `Приёмная кампания ${campaign.year} активна`
+              ? `Приёмная кампания ${campaign.year} · идёт`
               : lifecycle === "completed"
-                ? `Приёмная кампания ${campaign.year} завершена`
-                : `Приёмная кампания ${campaign.year} скоро`}
+                ? `Кампания ${campaign.year} активна · этапы по датам завершены`
+                : `Приёмная кампания ${campaign.year} · скоро`}
           </span>
         ) : null}
       </div>
@@ -606,6 +627,7 @@ export function ApplicantDashboard() {
                         start: new Date(stage.startsOn).getTime(),
                         end:
                           new Date(stage.endsOn).getTime() + 86400000 - 1,
+                        statusOverride: stage.statusOverride,
                       }));
                       return stages.map((stage, index) => {
                         const tone = stageToneFor(

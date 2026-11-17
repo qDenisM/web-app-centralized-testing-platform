@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { AppError } from "@abiturent/service-kit";
+import { reportAudit } from "../audit.js";
 import { requireApplicant } from "../auth.js";
 import { prisma } from "../db.js";
 import { applicationJson, examJson, waitlistJson } from "../serializers.js";
@@ -151,6 +152,12 @@ examsRoutes.post(
       });
 
       if (result.kind === "application") {
+        reportAudit({
+          actorId: userId,
+          targetId: userId,
+          action: "ct_apply",
+          payload: { examId, applicationId: result.row.id },
+        });
         res.status(201).json({
           type: "application",
           application: applicationJson(result.row),
@@ -158,6 +165,12 @@ examsRoutes.post(
         return;
       }
 
+      reportAudit({
+        actorId: userId,
+        targetId: userId,
+        action: "ct_waitlist_join",
+        payload: { examId, waitlistId: result.row.id },
+      });
       res.status(201).json({
         type: "waitlist",
         waitlist: waitlistJson(result.row),

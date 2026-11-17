@@ -14,6 +14,7 @@ type ConfirmDialogProps = {
   cancelLabel?: string;
   variant?: "primary" | "destructive";
   busy?: boolean;
+  error?: string | null;
 };
 
 export function ConfirmDialog({
@@ -26,6 +27,7 @@ export function ConfirmDialog({
   cancelLabel = "Отмена",
   variant = "primary",
   busy = false,
+  error = null,
 }: ConfirmDialogProps) {
   return (
     <Modal
@@ -56,7 +58,14 @@ export function ConfirmDialog({
         </>
       }
     >
-      <div className="text-sm leading-relaxed text-text-secondary">{children}</div>
+      <div className="space-y-3 text-sm leading-relaxed text-text-secondary">
+        <div>{children}</div>
+        {error ? (
+          <p className="rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 font-semibold text-red-700">
+            {error}
+          </p>
+        ) : null}
+      </div>
     </Modal>
   );
 }

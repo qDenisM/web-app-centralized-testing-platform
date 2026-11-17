@@ -17,6 +17,7 @@ const EnvSchema = z.object({
   JWT_AUDIENCE: z.string().default("abiturent"),
   ACCESS_TOKEN_TTL_SEC: z.coerce.number().int().positive().default(900),
   REFRESH_TOKEN_TTL_SEC: z.coerce.number().int().positive().default(604800),
+  INTERNAL_AUDIT_TOKEN: z.string().min(1).default("dev-audit-token"),
 });
 
 const parsed = EnvSchema.parse(process.env);
@@ -39,4 +40,5 @@ export const config = {
     accessTtlSec: parsed.ACCESS_TOKEN_TTL_SEC,
     refreshTtlSec: parsed.REFRESH_TOKEN_TTL_SEC,
   },
+  internalAuditToken: parsed.INTERNAL_AUDIT_TOKEN,
 };

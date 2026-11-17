@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { ActiveCampaignBadge } from "@/components/layout/ActiveCampaignBadge";
 import { RoleShell } from "@/components/layout/RoleShell";
 
 const navItems = [
@@ -23,17 +24,14 @@ export function AdminShell({ children }: AdminShellProps) {
       roleName="Администратор"
       homeHref="/admin"
       profileLinks={[{ href: "/admin", label: "Обзор системы", icon: "profile" }]}
-      headerBadge={
-        <span className="hidden rounded-full bg-brand-100 px-3 py-1 text-xs font-semibold text-brand-900 sm:inline">
-          Кампания: 2026 · Online
-        </span>
-      }
+      headerBadge={<ActiveCampaignBadge />}
       sidebarFooter={
         <div className="space-y-1">
           <div className="text-[10px] font-extrabold uppercase tracking-wide text-brand-900">
             Режим данных
           </div>
           <div className="font-semibold text-text-primary">Продакшн</div>
+          <div className="text-[10px] text-text-muted">Кэш обновлён недавно</div>
         </div>
       }
       footer={{

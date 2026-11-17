@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { AppError } from "@abiturent/service-kit";
+import { reportAudit } from "../audit.js";
 import { requireApplicant, requireModerator } from "../auth.js";
 import { prisma } from "../db.js";
 import { releaseSeatAndMaybePromote } from "../seats.js";
@@ -96,6 +97,16 @@ applicationsRoutes.post(
         return { application: cancelled, promoted };
       });
 
+      reportAudit({
+        actorId: userId,
+        targetId: userId,
+        action: "ct_cancel",
+        payload: {
+          applicationId: result.application.id,
+          examId: result.application.examId,
+        },
+      });
+
       res.status(200).json({
         application: applicationJson(result.application),
         promoted: result.promoted ? applicationJson(result.promoted) : null,
@@ -180,6 +191,13 @@ applicationsRoutes.post(
         where: { id },
         data: { status: "cancelled" },
         include: { exam: { include: examInclude } },
+      });
+
+      reportAudit({
+        actorId: userId,
+        targetId: userId,
+        action: "ct_waitlist_cancel",
+        payload: { waitlistId: updated.id, examId: updated.examId },
       });
 
       res.status(200).json(waitlistJson(updated));

@@ -191,11 +191,7 @@ authRoutes.post(
         data: { revokedAt: new Date() },
       });
 
-      await writeAudit({
-        actorId: session.userId,
-        targetId: session.userId,
-        action: "token_refresh",
-      });
+      // token_refresh is intentionally not audited (too noisy for admin history)
 
       const result = await issueTokens({ user: session.user, ip });
       res.status(200).json(result);

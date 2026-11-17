@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { AppError, validate } from "@abiturent/service-kit";
+import { reportAudit } from "../audit.js";
 import { requireModerator } from "../auth.js";
 import { prisma } from "../db.js";
 import { issuePassPdf } from "../pass-pdf.js";
@@ -93,6 +94,7 @@ moderatorRoutes.post(
   validate(BatchApproveSchema),
   async (req, res, next) => {
     try {
+      const moderatorId = req.user?.sub || null;
       const body = BatchApproveSchema.parse(req.body);
       const approved = [];
 
@@ -126,6 +128,16 @@ moderatorRoutes.post(
         });
         if (withPass) {
           approved.push(applicationJson(withPass));
+          reportAudit({
+            actorId: moderatorId,
+            targetId: withPass.userId,
+            action: "ct_approved",
+            payload: {
+              applicationId: withPass.id,
+              examId: withPass.examId,
+              passNumber: withPass.passNumber,
+            },
+          });
           await publishApplicationApproved({
             userId: withPass.userId,
             applicationId: withPass.id,
@@ -165,6 +177,7 @@ moderatorRoutes.post(
   validate(DecideSchema),
   async (req, res, next) => {
     try {
+      const moderatorId = req.user?.sub || null;
       const id = String(req.params.id);
       const body = DecideSchema.parse(req.body);
 
@@ -219,6 +232,16 @@ moderatorRoutes.post(
           include: { exam: { include: examInclude } },
         });
         if (withPass) {
+          reportAudit({
+            actorId: moderatorId,
+            targetId: withPass.userId,
+            action: "ct_approved",
+            payload: {
+              applicationId: withPass.id,
+              examId: withPass.examId,
+              passNumber: withPass.passNumber,
+            },
+          });
           await publishApplicationApproved({
             userId: withPass.userId,
             applicationId: withPass.id,
@@ -231,6 +254,19 @@ moderatorRoutes.post(
           });
           return;
         }
+      }
+
+      if (result.application.status === "rejected") {
+        reportAudit({
+          actorId: moderatorId,
+          targetId: result.application.userId,
+          action: "ct_rejected",
+          payload: {
+            applicationId: result.application.id,
+            examId: result.application.examId,
+            reason: result.application.rejectReason,
+          },
+        });
       }
 
       res.status(200).json({

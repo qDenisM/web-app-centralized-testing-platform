@@ -13,7 +13,10 @@ export async function POST(request: Request, { params }: Params) {
   });
 
   if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: result.status });
+    return NextResponse.json(
+      { error: result.error, details: result.details },
+      { status: result.status },
+    );
   }
 
   return NextResponse.json(result.data);
