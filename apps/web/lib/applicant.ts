@@ -37,9 +37,13 @@ export type UploadUrlResponse = {
 export type OcrAttestatResponse = {
   graduateName: string;
   schoolName: string;
-  attestatAverage: number;
+  attestatAverage: number | null;
   attestatIssuedOn: string;
   lowConfidenceFields: string[];
+  /** True when ai-service returned a demo stub (file was not actually read). */
+  stub?: boolean;
+  /** Human-readable reason when stub/fallback was used. */
+  error?: string | null;
 };
 
 export function verificationStatusLabel(status: string | null | undefined): string {

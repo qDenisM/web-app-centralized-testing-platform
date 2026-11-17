@@ -24,11 +24,20 @@ export async function applicantFetch<T>(
     headers.set("Content-Type", "application/json");
   }
 
-  const res = await fetch(`${getApplicantUrl()}${path}`, {
-    ...init,
-    headers,
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${getApplicantUrl()}${path}`, {
+      ...init,
+      headers,
+      cache: "no-store",
+    });
+  } catch {
+    return {
+      ok: false,
+      status: 503,
+      error: "applicant-service недоступен. Запустите npm run dev:services",
+    };
+  }
 
   if (res.status === 204) {
     return { ok: true, status: 204, data: undefined as T };
