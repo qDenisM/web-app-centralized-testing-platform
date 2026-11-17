@@ -10,7 +10,7 @@ import httpx
 from app.config import OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL
 
 PROMPT = """\
-Ты распознаёшь белорусский аттестат об общем среднем образовании по фото.
+Ты распознаёшь аттестат об общем среднем образовании РБ по фото (русскоязычная сторона бланка).
 Верни ТОЛЬКО JSON без markdown со схемой:
 {
   "graduateName": "ФИО как в аттестате",
@@ -20,11 +20,74 @@ PROMPT = """\
   "lowConfidenceFields": ["schoolName"]
 }
 Правила:
+- graduateName и schoolName пиши только русским кириллическим алфавитом, как на бланке.
+- Не подменяй похожие буквы: белорусское/украинское «і» → «и», латинские i/a/e/o/c/p/x → русские и/а/е/о/с/р/х.
+- Не используй белорусские «ў», «І» и латиницу в ФИО и названии школы.
+- В schoolName сокращай «Государственное учреждение образования» до «ГУО» (например: ГУО "Средняя школа № 4 г. Витебска").
 - attestatAverage — число от 1.0 до 10.0 (запятую в числе замени на точку).
 - attestatIssuedOn — дата выдачи аттестата, не дата рождения.
-- Если поле неуверенно — всё равно заполни лучшую гипотезу и добавь ключ в lowConfidenceFields.
+- Если поле неуверенно — всё равно заполни лучшую гипотезу и добавь ключ в lowConfidenceFields
+  (возможные ключи: graduateName, schoolName, attestatAverage, attestatIssuedOn).
+- schoolName почти всегда сомнителен на рукописных бланках — добавляй schoolName в lowConfidenceFields,
+  если название школы не читается полностью и однозначно.
 - Не выдумывай чужие демо-данные вроде «Иванов Иван Иванович» / «Гимназия № 1 г. Минска».
 """
+
+
+# Lookalikes that VL models often insert into Russian FIO/school strings.
+_HOMOGLYPHS = str.maketrans(
+    {
+        # Latin → Cyrillic
+        "a": "а",
+        "A": "А",
+        "e": "е",
+        "E": "Е",
+        "o": "о",
+        "O": "О",
+        "c": "с",
+        "C": "С",
+        "p": "р",
+        "P": "Р",
+        "x": "х",
+        "X": "Х",
+        "y": "у",
+        "Y": "У",
+        "i": "и",
+        "I": "И",
+        "B": "В",
+        "H": "Н",
+        "K": "К",
+        "M": "М",
+        "T": "Т",
+        # Belarusian / Ukrainian → Russian
+        "і": "и",
+        "І": "И",
+        "ї": "и",
+        "Ї": "И",
+        "ў": "у",
+        "Ў": "У",
+        "є": "е",
+        "Є": "Е",
+    }
+)
+
+
+def _fix_russian_text(value: str) -> str:
+    return value.translate(_HOMOGLYPHS)
+
+
+_SCHOOL_GUO_RE = re.compile(
+    r"государственное\s+учреждение\s+образования\s*/?",
+    re.IGNORECASE,
+)
+
+
+def _abbreviate_school(value: str) -> str:
+    """«Государственное учреждение образования …» → «ГУО …»."""
+    text = _SCHOOL_GUO_RE.sub("ГУО", value)
+    text = re.sub(r"ГУО/\s*/+", "ГУО", text)
+    text = re.sub(r"ГУО/\s+", "ГУО ", text)
+    return text.strip()
 
 
 def recognize_with_vision(
@@ -85,8 +148,10 @@ def recognize_with_vision(
 
 
 def _normalize(raw: dict[str, Any]) -> dict[str, Any]:
-    name = str(raw.get("graduateName") or "").strip()
-    school = str(raw.get("schoolName") or "").strip()
+    name = _fix_russian_text(str(raw.get("graduateName") or "").strip())
+    school = _abbreviate_school(
+        _fix_russian_text(str(raw.get("schoolName") or "").strip())
+    )
     issued = str(raw.get("attestatIssuedOn") or "").strip()
 
     average_raw = raw.get("attestatAverage")

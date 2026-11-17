@@ -4,14 +4,30 @@ import { cn } from "@/lib/utils";
 type InputProps = InputHTMLAttributes<HTMLInputElement> & {
   label: string;
   error?: string;
+  /** OCR low-confidence highlight */
+  doubt?: boolean;
 };
 
-export function Input({ label, error, id, className, ...props }: InputProps) {
+export function Input({
+  label,
+  error,
+  doubt = false,
+  id,
+  className,
+  ...props
+}: InputProps) {
   const inputId = id || props.name;
 
   return (
     <label className="block space-y-1.5" htmlFor={inputId}>
-      <span className="text-sm font-semibold text-text-secondary">{label}</span>
+      <span className="flex items-center justify-between gap-2 text-sm font-semibold text-text-secondary">
+        {label}
+        {doubt ? (
+          <span className="text-[10px] font-bold text-[#9A6B00]">
+            Проверьте: распознано с сомнениями
+          </span>
+        ) : null}
+      </span>
       <input
         id={inputId}
         aria-invalid={Boolean(error) || undefined}
@@ -22,7 +38,9 @@ export function Input({ label, error, id, className, ...props }: InputProps) {
           "focus:border-brand-500 focus:ring-2 focus:ring-brand-100",
           error
             ? "border-[#C94343] focus:border-[#C94343] focus:ring-[#C94343]/15"
-            : "border-border",
+            : doubt
+              ? "border-[#C6900A] bg-[#FFF4D6]/20 focus:border-[#C6900A] focus:ring-[#C6900A]/20"
+              : "border-border",
           className,
         )}
         {...props}

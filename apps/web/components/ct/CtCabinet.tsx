@@ -11,6 +11,7 @@ import {
   type ExamWaitlistEntry,
 } from "@/lib/exam";
 import type { CtResult } from "@/lib/results";
+import { CtSchedule } from "@/components/ct/CtSchedule";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { cn } from "@/lib/utils";
 
@@ -169,21 +170,11 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
     [applications],
   );
 
-  const scheduleByMonth = useMemo(() => {
-    const groups = new Map<string, ExamApplication[]>();
-    for (const app of scheduleApps) {
-      const d = app.exam?.startsAt
-        ? new Date(app.exam.startsAt)
-        : null;
-      const key = d
-        ? d.toLocaleDateString("ru-RU", { month: "long", year: "numeric" })
-        : "Без даты";
-      const list = groups.get(key) || [];
-      list.push(app);
-      groups.set(key, list);
-    }
-    return [...groups.entries()];
-  }, [scheduleApps]);
+  const resultsByExamId = useMemo(() => {
+    const map = new Map<string, CtResult>();
+    for (const row of results) map.set(row.examId, row);
+    return map;
+  }, [results]);
 
   const examById = useMemo(() => {
     const map = new Map<string, ExamSession>();
@@ -316,11 +307,11 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-extrabold tracking-tight text-brand-900">
-          Мои ЦТ
+          Мои экзамены ЦТ
         </h1>
       </div>
 
-      <div className="flex flex-wrap gap-2 border-b border-border pb-2">
+      <div className="flex flex-wrap gap-1 border-b border-border">
         {(
           [
             ["register", "Запись на ЦТ"],
@@ -334,10 +325,10 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
             type="button"
             onClick={() => setTab(key)}
             className={cn(
-              "rounded-[10px] px-3 py-1.5 text-sm font-semibold",
+              "-mb-px border-b-2 px-3 py-2 text-sm font-semibold transition-colors",
               tab === key
-                ? "bg-brand-100 text-brand-900"
-                : "text-text-secondary hover:bg-[#f4f7f9]",
+                ? "border-brand-700 text-brand-900"
+                : "border-transparent text-text-secondary hover:text-brand-800",
             )}
           >
             {label}
@@ -541,88 +532,14 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
       ) : null}
 
       {!loading && !error && tab === "schedule" ? (
-        <div className="space-y-5">
-          {scheduleApps.length === 0 ? (
-            <p className="rounded-[14px] border border-border bg-white p-5 text-sm text-text-secondary shadow-[var(--shadow-soft)]">
-              Пока нет активных записей. Запишитесь на вкладке «Запись на ЦТ».
-            </p>
-          ) : (
-            scheduleByMonth.map(([monthLabel, apps]) => (
-              <div key={monthLabel}>
-                <h2 className="mb-3 text-xs font-extrabold uppercase tracking-wide text-text-muted">
-                  {monthLabel}
-                </h2>
-                <div className="relative space-y-0 border-l-2 border-brand-200 pl-5">
-                  {apps.map((app) => {
-                    const day = app.exam?.startsAt
-                      ? new Date(app.exam.startsAt).toLocaleDateString("ru-RU", {
-                          day: "numeric",
-                          month: "short",
-                        })
-                      : "—";
-                    return (
-                      <article
-                        key={app.id}
-                        className="relative mb-4 rounded-[14px] border border-border bg-white p-4 shadow-[var(--shadow-soft)]"
-                      >
-                        <span className="absolute -left-[1.35rem] top-5 h-3 w-3 rounded-full border-2 border-white bg-brand-700" />
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="text-xs font-bold uppercase text-brand-800">
-                                {day}
-                              </span>
-                              <h3 className="text-base font-extrabold text-brand-900">
-                                {app.exam
-                                  ? subjectName(app.exam.subjectId)
-                                  : "Предмет"}
-                              </h3>
-                              <span
-                                className={cn(
-                                  "rounded-full px-2.5 py-0.5 text-xs font-bold",
-                                  app.status === "approved"
-                                    ? "bg-[#e4f6ec] text-[#176b45]"
-                                    : "bg-[#fff4e5] text-[#9a5b00]",
-                                )}
-                              >
-                                {applicationStatusLabel(app.status)}
-                              </span>
-                            </div>
-                            <p className="mt-1 text-sm text-text-secondary">
-                              {app.exam ? formatExamWhen(app.exam.startsAt) : "—"}
-                              {app.exam?.venue?.name
-                                ? ` · ${app.exam.venue.name}`
-                                : ""}
-                            </p>
-                          </div>
-                          {app.status === "approved" ? (
-                            <button
-                              type="button"
-                              disabled={busyId === app.id}
-                              onClick={() => void downloadPass(app.id)}
-                              className="rounded-[10px] bg-brand-700 px-4 py-2 text-sm font-bold text-white hover:bg-brand-800 disabled:opacity-60"
-                            >
-                              Скачать пропуск (PDF)
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              disabled={busyId === app.id}
-                              onClick={() => void cancelApplication(app.id)}
-                              className="rounded-[10px] px-4 py-2 text-sm font-bold text-[#c94343] hover:bg-[#fdecec] disabled:opacity-60"
-                            >
-                              Отменить
-                            </button>
-                          )}
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
+        <CtSchedule
+          applications={scheduleApps}
+          resultsByExamId={resultsByExamId}
+          subjectName={subjectName}
+          busyId={busyId}
+          onDownloadPass={(id) => void downloadPass(id)}
+          onCancel={(id) => void cancelApplication(id)}
+        />
       ) : null}
 
       {!loading && !error && tab === "results" ? (

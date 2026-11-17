@@ -3,13 +3,13 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { FormButton } from "@/components/ui/FormButton";
 import { Input } from "@/components/ui/Input";
+import { Modal } from "@/components/ui/Modal";
 import {
   verificationStatusLabel,
   type ApplicantProfile,
   type OcrAttestatResponse,
   type UploadUrlResponse,
 } from "@/lib/applicant";
-import { cn } from "@/lib/utils";
 
 const MAX_BYTES = 10 * 1024 * 1024;
 
@@ -33,6 +33,7 @@ export function CertificateForm() {
     storageKey?: string;
   }>({});
   const [ready, setReady] = useState(false);
+  const [savedOpen, setSavedOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -239,7 +240,7 @@ export function CertificateForm() {
       }
       setProfile(data);
       setLowConfidence([]);
-      alert("Данные аттестата сохранены");
+      setSavedOpen(true);
     } catch {
       setError("Сеть недоступна");
     } finally {
@@ -251,7 +252,7 @@ export function CertificateForm() {
     return <p className="text-sm text-text-muted">Загрузка…</p>;
   }
 
-  const schoolDoubt = lowConfidence.includes("schoolName");
+  const doubt = (field: string) => lowConfidence.includes(field);
 
   return (
     <div className="space-y-5">
@@ -363,31 +364,17 @@ export function CertificateForm() {
               value={graduateName}
               onChange={(e) => setGraduateName(e.target.value)}
               placeholder="Иванов Иван Иванович"
+              doubt={doubt("graduateName")}
             />
 
-            <label className="block space-y-1.5">
-              <span className="flex items-center justify-between gap-2 text-sm font-semibold text-text-secondary">
-                Учебное заведение
-                {schoolDoubt ? (
-                  <span className="text-[10px] font-bold text-[#9A6B00]">
-                    Проверьте: распознано с сомнениями
-                  </span>
-                ) : null}
-              </span>
-              <input
-                name="schoolName"
-                value={schoolName}
-                onChange={(e) => setSchoolName(e.target.value)}
-                placeholder="ГУО «Гимназия № 1 г. Минска»"
-                className={cn(
-                  "w-full rounded-[10px] border bg-white px-3.5 py-2.5 text-sm text-text-primary outline-none transition-colors",
-                  "placeholder:text-text-muted focus:ring-2",
-                  schoolDoubt
-                    ? "border-[#C6900A] bg-[#FFF4D6]/20 focus:border-[#C6900A] focus:ring-[#C6900A]/20"
-                    : "border-border focus:border-brand-500 focus:ring-brand-100",
-                )}
-              />
-            </label>
+            <Input
+              label="Учебное заведение"
+              name="schoolName"
+              value={schoolName}
+              onChange={(e) => setSchoolName(e.target.value)}
+              placeholder='ГУО/ "Гимназия № 1 г. Минска"'
+              doubt={doubt("schoolName")}
+            />
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Input
@@ -409,6 +396,7 @@ export function CertificateForm() {
                 }}
                 placeholder="9.0"
                 error={fieldErrors.attestatAverage}
+                doubt={doubt("attestatAverage")}
               />
               <Input
                 label="Дата выдачи"
@@ -416,6 +404,7 @@ export function CertificateForm() {
                 type="date"
                 value={attestatIssuedOn}
                 onChange={(e) => setAttestatIssuedOn(e.target.value)}
+                doubt={doubt("attestatIssuedOn")}
               />
             </div>
 
@@ -463,6 +452,27 @@ export function CertificateForm() {
           </form>
         </section>
       </div>
+
+      <Modal
+        open={savedOpen}
+        onClose={() => setSavedOpen(false)}
+        title="Готово"
+        size="sm"
+        footer={
+          <FormButton
+            type="button"
+            className="w-auto px-4 py-2.5"
+            onClick={() => setSavedOpen(false)}
+          >
+            ОК
+          </FormButton>
+        }
+      >
+        <p className="text-sm leading-relaxed text-text-secondary">
+          Данные аттестата сохранены. Средний балл записан в ваш конкурсный
+          профиль.
+        </p>
+      </Modal>
     </div>
   );
 }
