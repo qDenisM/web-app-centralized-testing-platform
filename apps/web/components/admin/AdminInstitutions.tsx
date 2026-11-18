@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/Input";
 import { FormButton } from "@/components/ui/FormButton";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { Modal } from "@/components/ui/Modal";
+import { Alert } from "@/components/ui/Alert";
 
 type TypeFilter = "all" | "university" | "college";
 
@@ -213,9 +214,7 @@ export function AdminInstitutions() {
       </div>
 
       {error ? (
-        <p className="rounded-[10px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </p>
+        <Alert>{error}</Alert>
       ) : null}
 
       <section className="space-y-3 rounded-[14px] border border-border bg-white p-4 shadow-[var(--shadow-soft)]">

@@ -4,16 +4,37 @@ import { AppError, validate } from "@abiturent/service-kit";
 import { reportAudit } from "../audit.js";
 import { requireModerator } from "../auth.js";
 import { prisma } from "../db.js";
+import {
+  applicantBriefFromMap,
+  lookupIdentityUsers,
+} from "../identity.js";
 import { publishVerificationDecided } from "../notify.js";
 import { verificationQueueJson } from "../serializers.js";
 import { createAttestatDownloadUrl } from "../storage.js";
 
 export const moderatorRoutes = Router();
 
+type VerificationWithProfile = Parameters<typeof verificationQueueJson>[0];
+
 const DecideSchema = z.object({
-  decision: z.enum(["approved", "returned", "rejected"]),
+  decision: z.enum(["approved", "returned", "rejected", "pending"]),
   reason: z.string().optional(),
 });
+
+const DECIDABLE_STATUSES = new Set([
+  "pending",
+  "approved",
+  "returned",
+  "rejected",
+]);
+
+async function serializeVerification(row: VerificationWithProfile) {
+  const users = await lookupIdentityUsers([row.profile.userId]);
+  return verificationQueueJson(
+    row,
+    applicantBriefFromMap(row.profile.userId, users),
+  );
+}
 
 moderatorRoutes.get(
   "/moderator/verifications",
@@ -39,11 +60,22 @@ moderatorRoutes.get(
         orderBy: [{ submittedAt: "asc" }],
       });
 
-      let items = rows.map(verificationQueueJson);
+      const users = await lookupIdentityUsers(
+        rows.map((row) => row.profile.userId),
+      );
+
+      let items = rows.map((row) =>
+        verificationQueueJson(
+          row,
+          applicantBriefFromMap(row.profile.userId, users),
+        ),
+      );
 
       if (q) {
         items = items.filter((item) => {
           const hay = [
+            item.applicant.fullName,
+            item.applicant.email,
             item.profile.graduateName,
             item.profile.schoolName,
             item.profile.passportSeries,
@@ -109,7 +141,7 @@ moderatorRoutes.get(
         });
       }
 
-      const payload = verificationQueueJson(row);
+      const payload = await serializeVerification(row);
       let attestatScanUrl: string | null = null;
       if (row.profile.storageKey) {
         const link = await createAttestatDownloadUrl(row.profile.storageKey);
@@ -141,12 +173,12 @@ moderatorRoutes.post(
       }
 
       if (row.status !== "pending") {
-        res.status(200).json(verificationQueueJson(row));
+        res.status(200).json(await serializeVerification(row));
         return;
       }
 
       if (!row.lockedBy) {
-        res.status(200).json(verificationQueueJson(row));
+        res.status(200).json(await serializeVerification(row));
         return;
       }
 
@@ -160,7 +192,7 @@ moderatorRoutes.post(
         include: { profile: true },
       });
 
-      res.status(200).json(verificationQueueJson(updated));
+      res.status(200).json(await serializeVerification(updated));
     } catch (err) {
       next(err);
     }
@@ -187,11 +219,16 @@ moderatorRoutes.post(
         throw AppError.notFound("Verification not found");
       }
 
-      if (row.status !== "pending") {
-        throw AppError.conflict("Решение уже вынесено");
+      if (!DECIDABLE_STATUSES.has(row.status)) {
+        throw AppError.badRequest("Эту заявку нельзя изменить");
       }
 
-      if (row.lockedBy && row.lockedBy !== moderatorId) {
+      // Pending cards are locked to one moderator; decided cards can be reopened/changed.
+      if (
+        row.status === "pending" &&
+        row.lockedBy &&
+        row.lockedBy !== moderatorId
+      ) {
         throw AppError.forbidden("Заявку проверяет другой модератор");
       }
 
@@ -202,31 +239,51 @@ moderatorRoutes.post(
         throw AppError.badRequest("Укажите причину");
       }
 
+      if (row.status === body.decision) {
+        if (
+          body.decision === "pending" ||
+          body.decision === "approved" ||
+          (body.reason?.trim() || null) === (row.rejectReason || null)
+        ) {
+          res.status(200).json(await serializeVerification(row));
+          return;
+        }
+      }
+
       const rejectReason =
-        body.decision === "approved" ? null : body.reason!.trim();
+        body.decision === "approved" || body.decision === "pending"
+          ? null
+          : body.reason!.trim();
 
       const updated = await prisma.verification.update({
         where: { id },
         data: {
           status: body.decision,
           rejectReason,
+          // Keep lock on reopen so the same moderator can finish re-review.
           lockedBy: moderatorId,
-          decidedAt: new Date(),
+          decidedAt: body.decision === "pending" ? null : new Date(),
         },
         include: { profile: true },
       });
 
+      const auditAction =
+        body.decision === "approved"
+          ? "verification_approved"
+          : body.decision === "returned"
+            ? "verification_returned"
+            : body.decision === "rejected"
+              ? "verification_rejected"
+              : "verification_reopened";
+
       reportAudit({
         actorId: moderatorId,
         targetId: updated.profile.userId,
-        action:
-          body.decision === "approved"
-            ? "verification_approved"
-            : body.decision === "returned"
-              ? "verification_returned"
-              : "verification_rejected",
+        action: auditAction,
         payload: {
           verificationId: updated.id,
+          fromStatus: row.status,
+          toStatus: body.decision,
           reason: rejectReason,
         },
       });
@@ -238,7 +295,7 @@ moderatorRoutes.post(
         reason: rejectReason,
       });
 
-      res.status(200).json(verificationQueueJson(updated));
+      res.status(200).json(await serializeVerification(updated));
     } catch (err) {
       next(err);
     }

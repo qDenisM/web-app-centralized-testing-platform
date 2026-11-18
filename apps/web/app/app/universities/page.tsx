@@ -1,10 +1,19 @@
-import { UniversitiesCatalog } from "@/components/universities/UniversitiesCatalog";
+import dynamic from "next/dynamic";
+import { PageLoading } from "@/components/ui/PageLoading";
 import {
   fetchCatalogSpecialties,
   fetchCatalogSubjects,
   type CatalogSpecialty,
   type CatalogSubject,
 } from "@/lib/catalog";
+
+const UniversitiesCatalog = dynamic(
+  () =>
+    import("@/components/universities/UniversitiesCatalog").then((m) => ({
+      default: m.UniversitiesCatalog,
+    })),
+  { loading: () => <PageLoading label="Загрузка каталога…" /> },
+);
 
 export default async function UniversitiesPage() {
   let specialties: CatalogSpecialty[] = [];

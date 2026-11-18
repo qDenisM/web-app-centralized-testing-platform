@@ -8,6 +8,17 @@ type AppWithExam = Application & {
   exam: Exam & { venue: Venue };
 };
 
+/** Try to occupy one seat; false if the exam is full. */
+export async function tryClaimSeat(tx: Tx, examId: string): Promise<boolean> {
+  const seated = await tx.$queryRaw<{ id: string }[]>`
+    UPDATE exams
+    SET seats_taken = seats_taken + 1
+    WHERE id = ${examId}::uuid AND seats_taken < capacity
+    RETURNING id
+  `;
+  return seated.length > 0;
+}
+
 export async function releaseSeatAndMaybePromote(
   tx: Tx,
   examId: string,

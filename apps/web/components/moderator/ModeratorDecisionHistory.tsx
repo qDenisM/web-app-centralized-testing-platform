@@ -11,6 +11,7 @@ import type { ExamApplication } from "@/lib/exam";
 import { cn } from "@/lib/utils";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { FormButton } from "@/components/ui/FormButton";
+import { Alert } from "@/components/ui/Alert";
 
 type OpTypeFilter = "all" | "data" | "applications";
 type DecisionFilter = "all" | "approved" | "returned" | "rejected";
@@ -233,7 +234,7 @@ export function ModeratorDecisionHistory() {
         const verifications = verificationBatches.flat();
         const nameByUserId = new Map<string, string>();
         for (const item of verifications) {
-          const name = item.profile.graduateName?.trim();
+          const name = applicantDisplayName(item);
           if (name) nameByUserId.set(item.profile.userId, name);
         }
 
@@ -379,9 +380,7 @@ export function ModeratorDecisionHistory() {
       </section>
 
       {error ? (
-        <p className="rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-          {error}
-        </p>
+        <Alert compact>{error}</Alert>
       ) : null}
 
       <section className="overflow-hidden rounded-[14px] border border-border bg-white shadow-[var(--shadow-soft)]">

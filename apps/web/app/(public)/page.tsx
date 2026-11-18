@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { InfoCard } from "@/components/ui/InfoCard";
@@ -116,14 +115,29 @@ export default function HomePage() {
             </div>
 
             <div className="flex justify-center lg:col-span-6 lg:justify-end">
-              <Image
-                src="/hero-student.png"
-                alt="Студент готовится к поступлению"
-                width={520}
-                height={420}
-                className="h-auto w-full max-w-[520px]"
-                priority
-              />
+              {/* AVIF ~34KB / WebP ~55KB vs PNG ~361KB — native <picture> so Lighthouse
+                  gets the small file without fighting next/image optimizer. */}
+              <picture>
+                <source
+                  type="image/avif"
+                  srcSet="/hero-student.avif"
+                  sizes="(max-width: 1024px) 90vw, 520px"
+                />
+                <source
+                  type="image/webp"
+                  srcSet="/hero-student.webp"
+                  sizes="(max-width: 1024px) 90vw, 520px"
+                />
+                <img
+                  src="/hero-student.png"
+                  alt="Студент готовится к поступлению"
+                  width={520}
+                  height={420}
+                  className="h-auto w-full max-w-[520px]"
+                  fetchPriority="high"
+                  decoding="async"
+                />
+              </picture>
             </div>
           </div>
         </Container>

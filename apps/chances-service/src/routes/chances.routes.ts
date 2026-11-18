@@ -4,7 +4,9 @@ import { AppError } from "@abiturent/service-kit";
 import { requireApplicant } from "../auth.js";
 import {
   buildScoresBySubject,
+  contestAttestatAverage,
   evaluateChance,
+  filterResultsForChances,
   type CatalogSpecialty,
 } from "../calculate.js";
 import { prisma } from "../db.js";
@@ -79,7 +81,10 @@ chancesRoutes.post("/chances/calculate", ...requireApplicant, async (req, res, n
         return;
       }
 
-      const scoresBySubject = buildScoresBySubject(results, examMap);
+      const scoresBySubject = buildScoresBySubject(
+        filterResultsForChances(results, profile.selectedCtResultIds),
+        examMap,
+      );
       const calculatedAt = new Date();
       const saved = [];
 
@@ -89,7 +94,7 @@ chancesRoutes.post("/chances/calculate", ...requireApplicant, async (req, res, n
 
         const outcome = evaluateChance({
           specialty,
-          attestatAverage: profile.attestatAverage,
+          attestatAverage: contestAttestatAverage(profile),
           scoresBySubject,
         });
 

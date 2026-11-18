@@ -11,6 +11,7 @@ import {
   type ExamWaitlistEntry,
 } from "@/lib/exam";
 import type { CtResult } from "@/lib/results";
+import { computeCompetitiveScore } from "@/lib/competitive-score";
 import { CtSchedule } from "@/components/ct/CtSchedule";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { cn } from "@/lib/utils";
@@ -190,19 +191,24 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
     [results],
   );
 
-  const ctSum = useMemo(
-    () => publishedResults.reduce((sum, row) => sum + (row.score || 0), 0),
-    [publishedResults],
+  const scoreParts = useMemo(
+    () =>
+      computeCompetitiveScore({
+        results,
+        profile,
+        exams: exams.map((exam) => ({
+          id: exam.id,
+          subjectId: exam.subjectId,
+        })),
+      }),
+    [results, profile, exams],
   );
 
+  const ctSum = scoreParts.ctSum;
   const attestatAvg = profile?.attestatAverage ?? null;
-  const attestatScaled =
-    attestatAvg !== null ? Math.round(attestatAvg * 10 * 10) / 10 : null;
-  // Competitive score only when both CT scores and attestat are present.
-  const competitiveTotal =
-    attestatScaled !== null && publishedResults.length > 0
-      ? Math.round((ctSum + attestatScaled) * 10) / 10
-      : null;
+  // Counted only after moderator approval (same rule as dashboard).
+  const attestatScaled = scoreParts.attestatPoints;
+  const competitiveTotal = scoreParts.competitive;
 
   const errorsResult = useMemo(() => {
     if (!errorsSubjectId) return null;
@@ -217,6 +223,7 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
   async function apply(examId: string) {
     setBusyId(examId);
     setMessage(null);
+    setError(null);
     try {
       const res = await fetch(`/api/exam/exams/${examId}/apply`, {
         method: "POST",
@@ -226,7 +233,7 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
         error?: string;
       };
       if (!res.ok) {
-        setMessage(json.error || "Не удалось записаться");
+        setError(json.error || "Не удалось записаться");
         return;
       }
       setMessage(
@@ -550,7 +557,7 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
                 Сумма ЦТ
               </p>
               <p className="mt-2 text-3xl font-black text-brand-900">
-                {publishedResults.length ? ctSum : "—"}
+                {scoreParts.subjectScores.length ? ctSum : "—"}
               </p>
             </div>
             <div className="rounded-[14px] border border-border bg-white p-4 shadow-[var(--shadow-soft)]">
@@ -561,9 +568,11 @@ export function CtCabinet({ subjects }: CtCabinetProps) {
                 {attestatScaled !== null ? attestatScaled : "—"}
               </p>
               <p className="mt-1 text-xs text-text-secondary">
-                {attestatAvg !== null
+                {attestatScaled !== null
                   ? `Средний балл ${attestatAvg}`
-                  : "Заполните аттестат"}
+                  : attestatAvg != null
+                    ? "Ожидает подтверждения модератором"
+                    : "Заполните аттестат"}
               </p>
             </div>
             <div className="rounded-[14px] border border-border bg-white p-4 shadow-[var(--shadow-soft)]">

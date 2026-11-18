@@ -7,14 +7,25 @@ import { verificationStatusLabel } from "@/lib/applicant";
 import type { ChanceResult, Favorite } from "@/lib/chances";
 import type { CatalogSpecialty, CatalogSubject } from "@/lib/catalog";
 import { latestPassingScore } from "@/lib/catalog";
-import { catalogChanceLabel } from "@/lib/chances-display";
+import {
+  catalogChanceDetail,
+  formatChanceBadge,
+  isChanceIncomplete,
+} from "@/lib/chances-display";
 import type { CtResult } from "@/lib/results";
 import {
   formatExamWhen,
   type ExamApplication,
 } from "@/lib/exam";
 import { computeCompetitiveScore } from "@/lib/competitive-score";
+import {
+  fetchCompetitiveScoreInputs,
+  writeShellExams,
+  writeShellProfile,
+  writeShellResults,
+} from "@/lib/shell-data";
 import { cn } from "@/lib/utils";
+import { Alert } from "@/components/ui/Alert";
 
 type CampaignStage = {
   id: string;
@@ -36,7 +47,16 @@ const CT_MAX = 300;
 const ATTESTAT_MAX = 10;
 const COMPETITIVE_MAX = 400;
 
-function accentForChance(status: ChanceResult["status"] | undefined) {
+function accentForChance(
+  status: ChanceResult["status"] | undefined,
+  incomplete = false,
+) {
+  if (incomplete) {
+    return {
+      border: "border-l-border",
+      badge: "bg-[#eef2f5] text-text-muted",
+    };
+  }
   if (status === "green") {
     return {
       border: "border-l-[#1F8A58]",
@@ -173,105 +193,103 @@ export function ApplicantDashboard() {
     Array<{ id: string; subjectId: string; startsAt?: string }>
   >([]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
+  const load = useCallback(async (opts?: { quiet?: boolean }) => {
+    if (!opts?.quiet) {
       setLoading(true);
       setError(null);
-      try {
-        const [
-          profileRes,
-          resultsRes,
-          favRes,
-          chanceRes,
-          campRes,
-          appsRes,
-          specRes,
-          subjRes,
-          examsRes,
-        ] = await Promise.all([
-          fetch("/api/applicant/profile"),
-          fetch("/api/results/me"),
-          fetch("/api/favorites"),
-          fetch("/api/chances/me"),
-          fetch("/api/catalog/campaigns/active"),
-          fetch("/api/exam/applications/me"),
-          fetch("/api/catalog/specialties"),
-          fetch("/api/catalog/subjects"),
-          fetch("/api/exam/exams"),
-        ]);
-
-        const profileJson = (await profileRes.json().catch(() => null)) as
-          | ApplicantProfile
-          | { error?: string }
-          | null;
-        const resultsJson = (await resultsRes.json().catch(() => [])) as
-          | CtResult[]
-          | { error?: string };
-        const favJson = (await favRes.json().catch(() => [])) as
-          | Favorite[]
-          | { error?: string };
-        const chanceJson = (await chanceRes.json().catch(() => [])) as
-          | ChanceResult[]
-          | { error?: string };
-        const campJson = (await campRes.json().catch(() => null)) as
-          | ActiveCampaign
-          | { error?: string };
-        const appsJson = (await appsRes.json().catch(() => [])) as
-          | ExamApplication[]
-          | { error?: string };
-        const specJson = (await specRes.json().catch(() => [])) as
-          | CatalogSpecialty[]
-          | { error?: string };
-        const subjJson = (await subjRes.json().catch(() => [])) as
-          | CatalogSubject[]
-          | { error?: string };
-        const examsJson = (await examsRes.json().catch(() => [])) as
-          | Array<{ id: string; subjectId: string; startsAt?: string }>
-          | { error?: string };
-
-        if (cancelled) return;
-
-        if (profileRes.ok && profileJson && !("error" in profileJson)) {
-          setProfile(profileJson as ApplicantProfile);
-        }
-        if (resultsRes.ok && Array.isArray(resultsJson)) {
-          setResults(resultsJson);
-        }
-        if (favRes.ok && Array.isArray(favJson)) {
-          setFavorites(favJson);
-        }
-        if (chanceRes.ok && Array.isArray(chanceJson)) {
-          setChances(chanceJson);
-        }
-        if (campRes.ok && campJson && !("error" in campJson)) {
-          setCampaign(campJson as ActiveCampaign);
-        }
-        if (appsRes.ok && Array.isArray(appsJson)) {
-          setApplications(appsJson);
-        }
-        if (specRes.ok && Array.isArray(specJson)) {
-          setSpecialties(specJson);
-        }
-        if (subjRes.ok && Array.isArray(subjJson)) {
-          setSubjects(subjJson);
-        }
-        if (examsRes.ok && Array.isArray(examsJson)) {
-          setExams(examsJson);
-        }
-      } catch {
-        if (!cancelled) setError("Не удалось загрузить сводку");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
     }
+    try {
+      // Score inputs go through shared shell cache (badge / prefetch reuse).
+      const scorePromise = fetchCompetitiveScoreInputs(opts?.quiet === true);
+      const [
+        scoreInputs,
+        favRes,
+        chanceRes,
+        campRes,
+        appsRes,
+        specRes,
+        subjRes,
+      ] = await Promise.all([
+        scorePromise,
+        fetch("/api/favorites", { cache: "no-store" }),
+        fetch("/api/chances/me", { cache: "no-store" }),
+        fetch("/api/catalog/campaigns/active", { cache: "no-store" }),
+        fetch("/api/exam/applications/me", { cache: "no-store" }),
+        // Rarely changing catalog: allow HTTP cache.
+        fetch("/api/catalog/specialties"),
+        fetch("/api/catalog/subjects"),
+      ]);
 
-    void load();
-    return () => {
-      cancelled = true;
-    };
+      const favJson = (await favRes.json().catch(() => [])) as
+        | Favorite[]
+        | { error?: string };
+      const chanceJson = (await chanceRes.json().catch(() => [])) as
+        | ChanceResult[]
+        | { error?: string };
+      const campJson = (await campRes.json().catch(() => null)) as
+        | ActiveCampaign
+        | { error?: string };
+      const appsJson = (await appsRes.json().catch(() => [])) as
+        | ExamApplication[]
+        | { error?: string };
+      const specJson = (await specRes.json().catch(() => [])) as
+        | CatalogSpecialty[]
+        | { error?: string };
+      const subjJson = (await subjRes.json().catch(() => [])) as
+        | CatalogSubject[]
+        | { error?: string };
+
+      setProfile(scoreInputs.profile);
+      setResults(scoreInputs.results);
+      setExams(scoreInputs.exams);
+      writeShellProfile(scoreInputs.profile);
+      writeShellResults(scoreInputs.results);
+      writeShellExams(scoreInputs.exams);
+
+      if (favRes.ok && Array.isArray(favJson)) {
+        setFavorites(favJson);
+      }
+      if (chanceRes.ok && Array.isArray(chanceJson)) {
+        setChances(chanceJson);
+      }
+      if (campRes.ok && campJson && !("error" in campJson)) {
+        setCampaign(campJson as ActiveCampaign);
+      }
+      if (appsRes.ok && Array.isArray(appsJson)) {
+        setApplications(appsJson);
+      }
+      if (specRes.ok && Array.isArray(specJson)) {
+        setSpecialties(specJson);
+      }
+      if (subjRes.ok && Array.isArray(subjJson)) {
+        setSubjects(subjJson);
+      }
+    } catch {
+      if (!opts?.quiet) setError("Не удалось загрузить сводку");
+    } finally {
+      if (!opts?.quiet) setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  // Refetch when returning to the tab so moderator approval updates the score.
+  useEffect(() => {
+    function onFocus() {
+      void load({ quiet: true });
+    }
+    function onVisibility() {
+      if (document.visibilityState === "visible") onFocus();
+    }
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [load]);
 
   const subjectName = useCallback(
     (subjectId: string | undefined) =>
@@ -445,9 +463,7 @@ export function ApplicantDashboard() {
       </div>
 
       {error ? (
-        <p className="rounded-[10px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </p>
+        <Alert>{error}</Alert>
       ) : null}
 
       {loading ? (
@@ -497,7 +513,9 @@ export function ApplicantDashboard() {
               <p className="mt-2 text-sm text-text-secondary">
                 {attestatPoints !== null
                   ? `В конкурсе даёт ${attestatPoints} баллов`
-                  : "Загрузите и подтвердите аттестат"}
+                  : attestat != null
+                    ? "Баллы зачтутся после подтверждения модератором"
+                    : "Загрузите и подтвердите аттестат"}
               </p>
               <div className="mt-4 flex items-center justify-between gap-2 border-t border-border pt-3 text-xs">
                 <span className="inline-flex items-center gap-1.5 font-semibold text-text-secondary">
@@ -510,12 +528,20 @@ export function ApplicantDashboard() {
                   </span>
                   {attestatFooter.label}
                 </span>
-                <Link
-                  href="/app/certificate"
-                  className="font-bold text-brand-700 hover:underline"
-                >
-                  Скан
-                </Link>
+                <span className="inline-flex items-center gap-2">
+                  <Link
+                    href="/app/certificate"
+                    className="font-bold text-brand-700 hover:underline"
+                  >
+                    Отправить
+                  </Link>
+                  <Link
+                    href="/app/certificate/history"
+                    className="font-semibold text-text-secondary hover:underline"
+                  >
+                    История
+                  </Link>
+                </span>
               </div>
             </article>
 
@@ -533,7 +559,17 @@ export function ApplicantDashboard() {
               <p className="mt-2 text-sm text-text-secondary">
                 {competitive !== null && attestatPoints !== null
                   ? `ЦТ ${ctSum} + Аттестат ${attestatPoints} = ${competitive} баллов`
-                  : "Нужны баллы ЦТ и аттестат"}
+                  : competitive !== null
+                    ? attestat == null
+                      ? `ЦТ ${ctSum} баллов · нужен средний балл аттестата`
+                      : `ЦТ ${ctSum} баллов · аттестат ещё не подтверждён модератором`
+                    : publishedScores.length === 0 && attestat == null
+                      ? "Нужны опубликованные баллы ЦТ и аттестат"
+                      : publishedScores.length === 0
+                        ? "Нужны опубликованные баллы ЦТ"
+                        : attestat == null
+                          ? "Нужен средний балл аттестата"
+                          : "Аттестат ещё не подтверждён модератором"}
               </p>
               <div className="mt-4 flex items-center justify-between gap-2 border-t border-border pt-3 text-xs">
                 <span className="font-semibold text-text-secondary">
@@ -712,16 +748,11 @@ export function ApplicantDashboard() {
                     );
                     const specialty = specialtyById.get(fav.specialtyId);
                     const institution = specialty?.institution;
-                    const accent = accentForChance(chance?.status);
-                    const gap = chance?.scoreGap;
-                    const gapText =
-                      gap == null
-                        ? null
-                        : gap < 0
-                          ? `Не хватает: ${gap} баллов`
-                          : gap > 0
-                            ? `Запас: +${gap} баллов`
-                            : "Вровень с проходным";
+                    const accent = accentForChance(
+                      chance?.status,
+                      isChanceIncomplete(chance),
+                    );
+                    const gapText = catalogChanceDetail(chance);
                     const passing = latestPassingScore(
                       specialty?.passingScores,
                     );
@@ -756,13 +787,7 @@ export function ApplicantDashboard() {
                               accent.badge,
                             )}
                           >
-                            {chance
-                              ? `${catalogChanceLabel(chance.status)}${
-                                  chance.probability != null
-                                    ? ` (${Math.round(chance.probability)}%)`
-                                    : ""
-                                }`
-                              : "Нет оценки"}
+                            {chance ? formatChanceBadge(chance) : "Нет оценки"}
                           </span>
                         </div>
                         {gapText ? (

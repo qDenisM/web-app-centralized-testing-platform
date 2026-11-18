@@ -3,6 +3,8 @@ import { AppError } from "@abiturent/service-kit";
 import { reportAudit } from "../audit.js";
 import { requireApplicant } from "../auth.js";
 import { prisma } from "../db.js";
+import { publishApplicationSubmitted } from "../notify.js";
+import { hasMeaningfulCtResult } from "../results-sync.js";
 import { applicationJson, examJson, waitlistJson } from "../serializers.js";
 
 export const examsRoutes = Router();
@@ -58,10 +60,22 @@ examsRoutes.post(
       if (!userId) throw AppError.unauthorized();
       const examId = String(req.params.id);
 
-      const result = await prisma.$transaction(async (tx) => {
-        const exam = await tx.exam.findUnique({ where: { id: examId } });
-        if (!exam) throw AppError.notFound("Exam not found");
+      const exam = await prisma.exam.findUnique({ where: { id: examId } });
+      if (!exam) throw AppError.notFound("Exam not found");
 
+      const campaignYear = exam.startsAt.getFullYear();
+      const alreadyScored = await hasMeaningfulCtResult({
+        userId,
+        subjectId: exam.subjectId,
+        campaignYear,
+      });
+      if (alreadyScored) {
+        throw AppError.conflict(
+          "Результат по этому предмету за кампанию уже есть",
+        );
+      }
+
+      const result = await prisma.$transaction(async (tx) => {
         const existingApp = await tx.application.findUnique({
           where: { examId_userId: { examId, userId } },
         });
@@ -80,7 +94,13 @@ examsRoutes.post(
           where: {
             userId,
             status: { in: ["pending", "approved"] },
-            exam: { subjectId: exam.subjectId },
+            exam: {
+              subjectId: exam.subjectId,
+              startsAt: {
+                gte: new Date(Date.UTC(campaignYear, 0, 1)),
+                lt: new Date(Date.UTC(campaignYear + 1, 0, 1)),
+              },
+            },
           },
         });
         if (activeSameSubject) {
@@ -157,6 +177,11 @@ examsRoutes.post(
           targetId: userId,
           action: "ct_apply",
           payload: { examId, applicationId: result.row.id },
+        });
+        await publishApplicationSubmitted({
+          userId,
+          applicationId: result.row.id,
+          examId,
         });
         res.status(201).json({
           type: "application",

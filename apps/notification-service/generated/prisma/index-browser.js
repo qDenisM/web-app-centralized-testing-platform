@@ -146,6 +146,9 @@ exports.Prisma.NotificationPreferencesScalarFieldEnum = {
   verificationQueue: 'verificationQueue',
   ctApplications: 'ctApplications',
   decisions: 'decisions',
+  resultsPublish: 'resultsPublish',
+  resultsImport: 'resultsImport',
+  examAssignments: 'examAssignments',
   defaultQueueTab: 'defaultQueueTab',
   updatedAt: 'updatedAt'
 };

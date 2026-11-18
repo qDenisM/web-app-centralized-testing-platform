@@ -1,29 +1,36 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CatalogSubject } from "@/lib/catalog";
 import {
-  formatExamWhen,
-  type ExamApplication,
+  formatExamVenue,
+  formatExamWhenShort,
   type ExamSession,
 } from "@/lib/exam";
-import { resultStatusLabel, shortUserId, type CtResult } from "@/lib/results";
+import {
+  type CtResult,
+  type ExaminerResultsResponse,
+} from "@/lib/results";
 import { cn } from "@/lib/utils";
-import { Modal } from "@/components/ui/Modal";
-import { FormButton } from "@/components/ui/FormButton";
+import { Alert } from "@/components/ui/Alert";
 
 type ExaminerExamsProps = {
   subjects: CatalogSubject[];
 };
 
+type ExamProgress = {
+  entered: number;
+  total: number;
+  pct: number;
+  done: boolean;
+};
+
 export function ExaminerExams({ subjects }: ExaminerExamsProps) {
   const [exams, setExams] = useState<ExamSession[]>([]);
+  const [results, setResults] = useState<CtResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [rosterExamId, setRosterExamId] = useState<string | null>(null);
-  const [rosterApps, setRosterApps] = useState<ExamApplication[]>([]);
-  const [rosterResults, setRosterResults] = useState<CtResult[]>([]);
-  const [rosterLoading, setRosterLoading] = useState(false);
 
   const subjectName = useCallback(
     (subjectId: string) =>
@@ -31,17 +38,24 @@ export function ExaminerExams({ subjects }: ExaminerExamsProps) {
     [subjects],
   );
 
-  const loadExams = useCallback(async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/exam/examiner/exams");
-      const json = (await res.json().catch(() => [])) as ExamSession[];
-      if (!res.ok) {
+      const [examsRes, resultsRes] = await Promise.all([
+        fetch("/api/exam/examiner/exams"),
+        fetch("/api/results/examiner/results?status=all"),
+      ]);
+      const examsJson = (await examsRes.json().catch(() => [])) as ExamSession[];
+      const resultsJson = (await resultsRes.json().catch(() => ({}))) as
+        ExaminerResultsResponse & { error?: string };
+      if (!examsRes.ok) {
         setError("Не удалось загрузить экзамены");
         return;
       }
-      setExams(Array.isArray(json) ? json : []);
+      setExams(Array.isArray(examsJson) ? examsJson : []);
+      if (resultsRes.ok) setResults(resultsJson.items || []);
+      else setResults([]);
     } catch {
       setError("Сеть недоступна");
     } finally {
@@ -50,46 +64,27 @@ export function ExaminerExams({ subjects }: ExaminerExamsProps) {
   }, []);
 
   useEffect(() => {
-    void loadExams();
-  }, [loadExams]);
+    void load();
+  }, [load]);
 
-  const rosterExam = useMemo(
-    () => exams.find((e) => e.id === rosterExamId) || null,
-    [exams, rosterExamId],
-  );
-
-  async function openRoster(examId: string) {
-    setRosterExamId(examId);
-    setRosterLoading(true);
-    setRosterApps([]);
-    setRosterResults([]);
-    try {
-      await fetch("/api/results/examiner/results/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ examId }),
-      });
-      const [appsRes, resultsRes] = await Promise.all([
-        fetch(`/api/exam/examiner/applications?status=approved&examId=${encodeURIComponent(examId)}`),
-        fetch(`/api/results/examiner/results?status=all&examId=${encodeURIComponent(examId)}`),
-      ]);
-      const appsJson = (await appsRes.json().catch(() => ({}))) as { items?: ExamApplication[] };
-      const resultsJson = (await resultsRes.json().catch(() => ({}))) as { items?: CtResult[] };
-      if (appsRes.ok) setRosterApps(appsJson.items || []);
-      if (resultsRes.ok) setRosterResults(resultsJson.items || []);
-    } finally {
-      setRosterLoading(false);
+  const progressByExam = useMemo(() => {
+    const map = new Map<string, { entered: number; rows: number }>();
+    for (const r of results) {
+      const cur = map.get(r.examId) || { entered: 0, rows: 0 };
+      cur.rows += 1;
+      if (r.status !== "missing") cur.entered += 1;
+      map.set(r.examId, cur);
     }
-  }
+    return map;
+  }, [results]);
 
-  const rosterRows = useMemo(() => {
-    const byUser = new Map<string, CtResult>();
-    for (const r of rosterResults) byUser.set(r.userId, r);
-    return rosterApps.map((app) => ({
-      app,
-      result: byUser.get(app.userId) || null,
-    }));
-  }, [rosterApps, rosterResults]);
+  function progressFor(exam: ExamSession): ExamProgress {
+    const stats = progressByExam.get(exam.id);
+    const total = Math.max(exam.capacity, exam.seatsTaken, stats?.rows || 0);
+    const entered = stats?.entered || 0;
+    const pct = total > 0 ? Math.round((entered / total) * 100) : 0;
+    return { entered, total, pct, done: total > 0 && entered >= total };
+  }
 
   return (
     <div className="space-y-5">
@@ -98,14 +93,12 @@ export function ExaminerExams({ subjects }: ExaminerExamsProps) {
           Экзамены сессии ЦТ 2026
         </h1>
         <p className="mt-1 text-sm text-text-secondary">
-          Сеансы централизованного тестирования и ведомости по пунктам.
+          Выберите пункт и дисциплину для ввода ведомостей с клавиатуры
         </p>
       </div>
 
       {error ? (
-        <p className="rounded-[10px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </p>
+        <Alert>{error}</Alert>
       ) : null}
 
       {loading ? (
@@ -115,119 +108,93 @@ export function ExaminerExams({ subjects }: ExaminerExamsProps) {
           Нет запланированных экзаменов.
         </p>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {exams.map((exam) => (
-            <article
-              key={exam.id}
-              className="flex flex-col rounded-[14px] border border-border bg-white p-5 shadow-[var(--shadow-soft)]"
-            >
-              <div className="text-xs font-bold uppercase tracking-wide text-text-muted">
-                {exam.venue?.city || "Беларусь"}
-              </div>
-              <h2 className="mt-1 text-lg font-extrabold text-brand-900">
-                {subjectName(exam.subjectId)}
-              </h2>
-              <p className="mt-2 text-sm text-text-secondary">{formatExamWhen(exam.startsAt)}</p>
-              <p className="text-sm text-text-muted">
-                {exam.venue?.name || "Пункт не указан"}
-              </p>
-              <p className="mt-2 text-xs text-text-muted">
-                Мест: {exam.seatsTaken}/{exam.capacity}
-                {exam.isReserve ? " · резерв" : ""}
-              </p>
-              <div className="mt-4 flex-1" />
-              <button
-                type="button"
-                onClick={() => void openRoster(exam.id)}
-                className="text-left text-sm font-bold text-brand-700 hover:text-brand-900"
+        <div className="grid gap-4 sm:grid-cols-2">
+          {exams.map((exam) => {
+            const progress = progressFor(exam);
+            const href = `/examiner/exams/${exam.id}`;
+            return (
+              <article
+                key={exam.id}
+                className="flex flex-col rounded-[14px] border border-border bg-white p-5 shadow-[var(--shadow-soft)] transition-shadow hover:shadow-md"
               >
-                Ведомость →
-              </button>
-            </article>
-          ))}
+                <div className="flex items-start justify-between gap-3">
+                  <h2 className="text-lg font-extrabold text-brand-900">
+                    {subjectName(exam.subjectId)}
+                  </h2>
+                  <span
+                    className={cn(
+                      "shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold",
+                      progress.done
+                        ? "bg-green-50 text-green-800"
+                        : "bg-[#fff7e6] text-[#ad6800]",
+                    )}
+                  >
+                    {progress.done ? "Завершён" : "В работе"}
+                  </span>
+                </div>
+
+                <p className="mt-3 flex items-center gap-2 text-sm text-text-secondary">
+                  <CalendarIcon />
+                  <span>{formatExamWhenShort(exam.startsAt)}</span>
+                </p>
+                <p className="mt-1 text-sm text-text-muted">
+                  {formatExamVenue(exam)}
+                  {exam.isReserve ? " · резерв" : ""}
+                </p>
+
+                <div className="mt-4 space-y-1.5">
+                  <p className="text-sm text-text-secondary">
+                    Внесено результатов:{" "}
+                    <span className="font-semibold text-text-primary">
+                      {progress.entered} из {progress.total}
+                    </span>
+                  </p>
+                  <div className="h-2 overflow-hidden rounded-full bg-[#eef2f5]">
+                    <div
+                      className="h-full rounded-full bg-brand-700 transition-[width]"
+                      style={{ width: `${Math.min(100, progress.pct)}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-text-muted">
+                    {progress.pct}% заполнено
+                  </p>
+                </div>
+
+                <div className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-3">
+                  <Link
+                    href={href}
+                    className="text-sm text-text-muted hover:text-text-secondary"
+                  >
+                    Нажмите для ввода баллов
+                  </Link>
+                  <Link
+                    href={href}
+                    className="text-sm font-bold text-brand-700 hover:text-brand-900"
+                  >
+                    Ведомость →
+                  </Link>
+                </div>
+              </article>
+            );
+          })}
         </div>
       )}
-
-      <Modal
-        open={rosterExamId !== null}
-        onClose={() => setRosterExamId(null)}
-        title={
-          rosterExam
-            ? `Ведомость · ${subjectName(rosterExam.subjectId)}`
-            : "Ведомость экзамена"
-        }
-        size="lg"
-        footer={
-          <FormButton
-            type="button"
-            variant="secondary"
-            className="w-auto px-4 py-2.5"
-            onClick={() => setRosterExamId(null)}
-          >
-            Закрыть
-          </FormButton>
-        }
-      >
-        {rosterExam ? (
-          <p className="mb-4 text-sm text-text-secondary">
-            {formatExamWhen(rosterExam.startsAt)} · {rosterExam.venue?.name || "—"}
-          </p>
-        ) : null}
-        {rosterLoading ? (
-          <p className="text-sm text-text-muted">Загрузка ведомости…</p>
-        ) : rosterRows.length === 0 ? (
-          <p className="text-sm text-text-muted">Нет допущенных абитуриентов.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
-              <thead className="border-b border-border text-xs font-bold uppercase text-text-muted">
-                <tr>
-                  <th className="px-2 py-2">Абитуриент</th>
-                  <th className="px-2 py-2">Пропуск</th>
-                  <th className="px-2 py-2">Явка</th>
-                  <th className="px-2 py-2">Балл</th>
-                  <th className="px-2 py-2">Статус</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rosterRows.map(({ app, result }) => (
-                  <tr key={app.id} className="border-b border-border">
-                    <td className="px-2 py-2 font-semibold">
-                      {shortUserId(app.userId)}
-                    </td>
-                    <td className="px-2 py-2">{app.passNumber || "—"}</td>
-                    <td className="px-2 py-2">
-                      {result?.status === "absent" ? "Неявка" : "Явился"}
-                    </td>
-                    <td className="px-2 py-2 font-bold tabular-nums">
-                      {result?.status === "absent" ? "—" : (result?.score ?? "—")}
-                    </td>
-                    <td className="px-2 py-2">
-                      <RosterStatus status={result?.status || "missing"} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Modal>
     </div>
   );
 }
 
-function RosterStatus({ status }: { status: string }) {
+function CalendarIcon() {
   return (
-    <span
-      className={cn(
-        "rounded-full px-2 py-0.5 text-xs font-bold",
-        status === "published" && "bg-green-50 text-green-800",
-        status === "draft" && "bg-[#fff7e6] text-[#ad6800]",
-        status === "missing" && "bg-[#f0f5ff] text-[#1d39c4]",
-        status === "absent" && "bg-red-50 text-red-700",
-      )}
+    <svg
+      viewBox="0 0 16 16"
+      className="h-4 w-4 shrink-0 text-text-muted"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      aria-hidden
     >
-      {resultStatusLabel(status)}
-    </span>
+      <rect x="2" y="3.5" width="12" height="10.5" rx="1.5" />
+      <path d="M2 6.5h12M5 2v3M11 2v3" strokeLinecap="round" />
+    </svg>
   );
 }

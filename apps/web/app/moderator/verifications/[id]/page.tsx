@@ -1,4 +1,13 @@
-import { VerificationCard } from "@/components/moderator/VerificationCard";
+import dynamic from "next/dynamic";
+import { PageLoading } from "@/components/ui/PageLoading";
+
+const VerificationCard = dynamic(
+  () =>
+    import("@/components/moderator/VerificationCard").then((m) => ({
+      default: m.VerificationCard,
+    })),
+  { loading: () => <PageLoading label="Загрузка проверки…" /> },
+);
 
 type PageProps = {
   params: Promise<{ id: string }>;

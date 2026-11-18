@@ -1,15 +1,20 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 /**
  * Ensures cabinet pages have a session. Redirects to /login instead of
  * rendering "Нужна авторизация" on dashboards.
+ *
+ * Runs once per shell mount (layout). Re-checking on every pathname change
+ * added a fetch waterfall on each nav click without changing UX (ready stayed true).
  */
 export function RequireAuth({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const pathnameRef = useRef(pathname);
+  pathnameRef.current = pathname;
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -31,11 +36,11 @@ export function RequireAuth({ children }: { children: ReactNode }) {
           return;
         }
 
-        const next = encodeURIComponent(pathname || "/app");
+        const next = encodeURIComponent(pathnameRef.current || "/app");
         router.replace(`/login?next=${next}`);
       } catch {
         if (!cancelled) {
-          const next = encodeURIComponent(pathname || "/app");
+          const next = encodeURIComponent(pathnameRef.current || "/app");
           router.replace(`/login?next=${next}`);
         }
       }
@@ -45,7 +50,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [pathname, router]);
+  }, [router]);
 
   if (!ready) {
     return (

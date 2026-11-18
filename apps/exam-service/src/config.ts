@@ -34,6 +34,7 @@ const EnvSchema = z.object({
     .string()
     .default("amqp://abiturent:abiturent@localhost:5672"),
   IDENTITY_URL: z.string().url().default("http://localhost:3001"),
+  RESULTS_URL: z.string().url().default("http://localhost:3005"),
   INTERNAL_AUDIT_TOKEN: z.string().min(1).default("dev-audit-token"),
 });
 
@@ -60,5 +61,6 @@ export const config = {
   downloadUrlTtlSec: parsed.DOWNLOAD_URL_TTL_SEC,
   rabbitmqUrl: parsed.RABBITMQ_URL,
   identityUrl: parsed.IDENTITY_URL.replace(/\/$/, ""),
+  resultsUrl: parsed.RESULTS_URL.replace(/\/$/, ""),
   internalAuditToken: parsed.INTERNAL_AUDIT_TOKEN,
 };

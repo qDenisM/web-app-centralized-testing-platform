@@ -11,6 +11,7 @@ import {
   type ProfileMenuLink,
 } from "@/components/layout/ProfileMenu";
 import { NavIcon, type NavIconName } from "@/components/icons/NavIcons";
+import { ShellDataPrefetch } from "@/lib/shell-data";
 import { cn } from "@/lib/utils";
 
 export type RoleNavItem = {
@@ -29,6 +30,9 @@ type RoleShellProps = {
   headerBadge?: ReactNode;
   sidebarFooter?: ReactNode;
   profileLinks?: ProfileMenuLink[];
+  notificationsHref?: string;
+  /** Warm applicant score cache (profile/results/exams) for badge + dashboard. */
+  prefetchScore?: boolean;
   footer: {
     roleLabel: string;
     roleLinks: Array<{ href: string; label: string }>;
@@ -55,6 +59,8 @@ export function RoleShell({
   headerBadge,
   sidebarFooter,
   profileLinks = [],
+  notificationsHref = "/app/notifications",
+  prefetchScore = false,
   footer,
   showMobileNav = true,
 }: RoleShellProps) {
@@ -62,12 +68,13 @@ export function RoleShell({
 
   return (
     <div className="flex min-h-screen min-w-[1024px] flex-col bg-bg-page">
+      <ShellDataPrefetch includeScore={prefetchScore} />
       <header className="shrink-0 border-b border-border bg-white">
         <div className={cn(shellContainer, "h-16 items-center justify-between gap-3")}>
           <Logo href={homeHref} />
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
             {headerBadge}
-            <NotificationsBell />
+            <NotificationsBell allHref={notificationsHref} />
             <ProfileMenu roleName={roleName} links={profileLinks} />
           </div>
         </div>

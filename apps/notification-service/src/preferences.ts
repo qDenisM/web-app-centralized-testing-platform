@@ -5,6 +5,11 @@ export type ModeratorNotifKind =
   | "ctApplications"
   | "decisions";
 
+export type ExaminerNotifKind =
+  | "resultsPublish"
+  | "resultsImport"
+  | "examAssignments";
+
 export type DefaultQueueTab =
   | "overview"
   | "docs"
@@ -17,6 +22,9 @@ export type NotificationPreferencesDto = {
   verificationQueue: boolean;
   ctApplications: boolean;
   decisions: boolean;
+  resultsPublish: boolean;
+  resultsImport: boolean;
+  examAssignments: boolean;
   defaultQueueTab: DefaultQueueTab;
   updatedAt: string;
 };
@@ -41,6 +49,9 @@ function prefsJson(row: {
   verificationQueue: boolean;
   ctApplications: boolean;
   decisions: boolean;
+  resultsPublish: boolean;
+  resultsImport: boolean;
+  examAssignments: boolean;
   defaultQueueTab: string;
   updatedAt: Date;
 }): NotificationPreferencesDto {
@@ -50,6 +61,9 @@ function prefsJson(row: {
     verificationQueue: row.verificationQueue,
     ctApplications: row.ctApplications,
     decisions: row.decisions,
+    resultsPublish: row.resultsPublish,
+    resultsImport: row.resultsImport,
+    examAssignments: row.examAssignments,
     defaultQueueTab: parseDefaultQueueTab(row.defaultQueueTab),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -86,4 +100,19 @@ export async function isUserPrefEnabled(
   if (kind === "verificationQueue") return row.verificationQueue;
   if (kind === "ctApplications") return row.ctApplications;
   return row.decisions;
+}
+
+/**
+ * Call before creating in-app notifications for examiners.
+ * Gates future/existing examiner-targeted events (publish, import, assignments).
+ */
+export async function isExaminerPrefEnabled(
+  userId: string,
+  kind: ExaminerNotifKind,
+): Promise<boolean> {
+  const row = await getOrCreatePreferences(userId);
+  if (!row.allEnabled) return false;
+  if (kind === "resultsPublish") return row.resultsPublish;
+  if (kind === "resultsImport") return row.resultsImport;
+  return row.examAssignments;
 }

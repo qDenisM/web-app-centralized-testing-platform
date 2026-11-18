@@ -1,53 +1,35 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
-import type { ApplicantProfile } from "@/lib/applicant";
+import { useEffect } from "react";
 import { computeCompetitiveScore } from "@/lib/competitive-score";
-import type { CtResult } from "@/lib/results";
+import { useCompetitiveScoreInputs } from "@/lib/shell-data";
 
 export function CompetitiveScoreBadge() {
-  const pathname = usePathname();
-  const [label, setLabel] = useState("—");
+  const { results, profile, exams, load } = useCompetitiveScoreInputs();
 
-  const load = useCallback(async () => {
-    try {
-      const [resultsRes, profileRes, examsRes] = await Promise.all([
-        fetch("/api/results/me", { cache: "no-store" }),
-        fetch("/api/applicant/profile", { cache: "no-store" }),
-        fetch("/api/exam/exams", { cache: "no-store" }),
-      ]);
-      const results = (await resultsRes.json().catch(() => [])) as CtResult[];
-      const profile = (await profileRes.json().catch(() => null)) as
-        | ApplicantProfile
-        | null;
-      const exams = (await examsRes.json().catch(() => [])) as Array<{
-        id: string;
-        subjectId: string;
-      }>;
-
-      const { competitive } = computeCompetitiveScore({
-        results: Array.isArray(results) ? results : [],
-        profile,
-        exams: Array.isArray(exams) ? exams : [],
-      });
-      setLabel(competitive != null ? String(competitive) : "—");
-    } catch {
-      setLabel("—");
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load, pathname]);
-
+  // Soft refresh on focus/visibility; shared cache avoids duplicate fetches
+  // when ApplicantDashboard (or other pages) already warmed the keys.
   useEffect(() => {
     function onFocus() {
-      void load();
+      void load(true);
+    }
+    function onVisibility() {
+      if (document.visibilityState === "visible") onFocus();
     }
     window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [load]);
+
+  const { competitive } = computeCompetitiveScore({
+    results,
+    profile,
+    exams,
+  });
+  const label = competitive != null ? String(competitive) : "—";
 
   return (
     <span className="hidden rounded-full bg-brand-100 px-3 py-1 text-xs font-semibold text-brand-900 sm:inline">

@@ -7,6 +7,7 @@ import { FilterSelect } from "@/components/ui/FilterSelect";
 import type { ExamApplication } from "@/lib/exam";
 import {
   applicantDisplayName,
+  applicantSecondaryLine,
   formatSubmittedAt,
   isResubmission,
   moderatorStatusLabel,
@@ -15,6 +16,9 @@ import {
   type ModeratorVerificationItem,
 } from "@/lib/moderator";
 import { cn } from "@/lib/utils";
+import { Alert } from "@/components/ui/Alert";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 
 type Tab = "all" | "pending" | "returned" | "unverified";
 
@@ -150,6 +154,8 @@ export function VerificationQueue({
       const needle = query.toLowerCase();
       rows = rows.filter((item) => {
         const hay = [
+          item.applicant?.fullName,
+          item.applicant?.email,
           item.profile.graduateName,
           item.profile.passportSeries,
           item.profile.passportNumber,
@@ -264,17 +270,15 @@ export function VerificationQueue({
       </form>
 
       {error ? (
-        <p className="rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-          {error}
-        </p>
+        <Alert compact>{error}</Alert>
       ) : null}
 
       {loading ? (
         <p className="text-sm text-text-muted">Загрузка очереди…</p>
       ) : filtered.length === 0 ? (
-        <div className="rounded-[14px] border border-border bg-white p-8 text-center text-sm text-text-muted">
+        <EmptyState className="border-solid p-8 shadow-none">
           В этой вкладке пока пусто.
-        </div>
+        </EmptyState>
       ) : (
         <div className="overflow-hidden rounded-[14px] border border-border bg-white shadow-[var(--shadow-soft)]">
           <div className="overflow-x-auto">
@@ -363,10 +367,7 @@ function QueueRow({
   ctWaiting: number;
 }) {
   const name = applicantDisplayName(item);
-  const secondary =
-    item.profile.passportSeries && item.profile.passportNumber
-      ? `${item.profile.passportSeries} ${item.profile.passportNumber}`
-      : `ID ${item.profile.userId.slice(0, 8)}…`;
+  const secondary = applicantSecondaryLine(item);
   const lockedByMe = Boolean(meId && item.lockedBy === meId);
   // Only treat as busy when we know another moderator holds the lock.
   const lockedByOther = Boolean(
@@ -404,9 +405,8 @@ function QueueRow({
         )}
       </td>
       <td className="px-4 py-3">
-        <span
+        <StatusBadge
           className={cn(
-            "inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold",
             item.status === "pending" && "bg-brand-100 text-brand-900",
             item.status === "returned" && "bg-[#FFF4D6] text-[#9A6B00]",
             item.status === "rejected" && "bg-red-50 text-red-700",
@@ -414,7 +414,7 @@ function QueueRow({
           )}
         >
           {moderatorStatusLabel(item.status)}
-        </span>
+        </StatusBadge>
       </td>
       <td className="px-4 py-3 font-semibold text-text-primary">{ctWaiting}</td>
       <td className="px-4 py-3">

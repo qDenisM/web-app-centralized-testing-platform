@@ -125,20 +125,21 @@ export function CertificateApplication() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-5">
-      {status ? (
-        <p className="text-sm text-text-secondary">
-          Статус заявки:{" "}
-          <span className="font-semibold text-brand-800">
-            {verificationStatusLabel(status)}
-          </span>
-        </p>
-      ) : null}
-
+    <div className="mx-auto max-w-6xl space-y-5">
       {profile?.verification?.rejectReason ? (
         <p className="whitespace-pre-line rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           Причина:{"\n"}
-          {profile.verification.rejectReason}
+          {profile.verification.rejectReason}{" "}
+          <Link
+            href={
+              profile.verification.id
+                ? `/app/certificate/history/${profile.verification.id}`
+                : "/app/certificate/history"
+            }
+            className="font-bold underline"
+          >
+            Подробнее
+          </Link>
         </p>
       ) : null}
 
@@ -163,6 +164,23 @@ export function CertificateApplication() {
 
       <CertificateForm
         key={formKey}
+        belowTitle={
+          status ? (
+            <p className="mt-1 text-sm text-text-secondary">
+              Текущий статус:{" "}
+              <span className="font-semibold text-brand-800">
+                {verificationStatusLabel(status)}
+              </span>
+              .{" "}
+              <Link
+                href="/app/certificate/history"
+                className="font-bold text-brand-700 hover:underline"
+              >
+                История заявок
+              </Link>
+            </p>
+          ) : null
+        }
         onProfileChange={(next) => {
           setProfile(next);
           if (next.verification?.status === "pending") {
@@ -174,57 +192,59 @@ export function CertificateApplication() {
         }}
       />
 
-      <div className="flex flex-wrap gap-3 rounded-[14px] border border-border bg-white p-5 shadow-[var(--shadow-soft)]">
-        {canSubmit ? (
-          <FormButton
-            type="button"
-            className="w-auto px-5 py-2.5"
-            disabled={submitting}
-            onClick={() => void onSubmitForReview()}
-          >
-            {submitting ? "Отправляем…" : "Отправить на проверку"}
-          </FormButton>
-        ) : null}
-        {canWithdraw ? (
-          <FormButton
-            type="button"
-            variant="destructive"
-            className="w-auto px-5 py-2.5"
-            disabled={withdrawing}
-            onClick={() => void onWithdraw()}
-          >
-            {withdrawing ? "Удаляем…" : "Удалить заявку"}
-          </FormButton>
-        ) : null}
-        {status === "pending" && !profile?.verification?.lockedBy ? (
-          <p className="w-full text-sm text-text-muted">
-            Заявка на проверке. Пока модератор её не взял, можно удалить и
-            отправить снова.
-          </p>
-        ) : null}
-        {status === "pending" && profile?.verification?.lockedBy ? (
-          <p className="w-full text-sm text-text-muted">
-            Заявку уже рассматривает модератор — удаление недоступно.
-          </p>
-        ) : null}
-        {canSubmit && !hasPassport(profile) ? (
-          <p className="w-full text-sm text-text-muted">
-            Для отправки нужны паспортные данные в{" "}
-            <Link
-              href="/app/profile"
-              className="font-bold text-brand-700 hover:underline"
+      {canSubmit || canWithdraw || status === "pending" || status === "approved" ? (
+        <div className="flex flex-wrap gap-3 rounded-[14px] border border-border bg-white p-5 shadow-[var(--shadow-soft)]">
+          {canSubmit ? (
+            <FormButton
+              type="button"
+              className="w-auto px-5 py-2.5"
+              disabled={submitting}
+              onClick={() => void onSubmitForReview()}
             >
-              настройках профиля
-            </Link>
-            . Если они уже заполнены, подтверждение скана само отправит заявку.
-          </p>
-        ) : null}
-        {!canSubmit && !canWithdraw && status === "approved" ? (
-          <p className="w-full text-sm text-text-muted">
-            Аттестат подтверждён модератором.
-          </p>
-        ) : null}
-      </div>
+              {submitting ? "Отправляем…" : "Отправить на проверку"}
+            </FormButton>
+          ) : null}
+          {canWithdraw ? (
+            <FormButton
+              type="button"
+              variant="destructive"
+              className="w-auto px-5 py-2.5"
+              disabled={withdrawing}
+              onClick={() => void onWithdraw()}
+            >
+              {withdrawing ? "Удаляем…" : "Удалить заявку"}
+            </FormButton>
+          ) : null}
+          {status === "pending" && !profile?.verification?.lockedBy ? (
+            <p className="w-full text-sm text-text-muted">
+              Заявка на проверке. Пока модератор её не взял, можно удалить и
+              отправить снова.
+            </p>
+          ) : null}
+          {status === "pending" && profile?.verification?.lockedBy ? (
+            <p className="w-full text-sm text-text-muted">
+              Заявку уже рассматривает модератор — удаление недоступно.
+            </p>
+          ) : null}
+          {canSubmit && !hasPassport(profile) ? (
+            <p className="w-full text-sm text-text-muted">
+              Для отправки нужны паспортные данные в{" "}
+              <Link
+                href="/app/profile"
+                className="font-bold text-brand-700 hover:underline"
+              >
+                настройках профиля
+              </Link>
+              . Если они уже заполнены, подтверждение скана само отправит заявку.
+            </p>
+          ) : null}
+          {!canSubmit && !canWithdraw && status === "approved" ? (
+            <p className="w-full text-sm text-text-muted">
+              Аттестат подтверждён модератором.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

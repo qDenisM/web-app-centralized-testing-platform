@@ -10,7 +10,12 @@ import {
   type CatalogSubject,
 } from "@/lib/catalog";
 import type { ChanceResult, ChanceStatus, Favorite } from "@/lib/chances";
-import { catalogChanceLabel } from "@/lib/chances-display";
+import {
+  catalogChanceDetail,
+  catalogChanceLabel,
+  catalogChancePercent,
+  isChanceIncomplete,
+} from "@/lib/chances-display";
 import {
   ChevronDown,
   FilterSelect,
@@ -24,6 +29,9 @@ type UniversitiesCatalogProps = {
 
 type SortMode = "score-desc" | "score-asc" | "name";
 type ChanceFilter = "" | "green" | "yellow" | "red" | "none";
+
+/** Initial paint + "show more" chunks — avoids mounting 400+ heavy cards at once. */
+const PAGE_SIZE = 24;
 
 const emptyFilters = {
   university: "",
@@ -209,6 +217,7 @@ export function UniversitiesCatalog({
   const [busySpecialtyId, setBusySpecialtyId] = useState<string | null>(null);
   const [calcBusy, setCalcBusy] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const favoriteIds = useMemo(
     () => new Set(favorites.map((f) => f.specialtyId)),
@@ -405,6 +414,17 @@ export function UniversitiesCatalog({
     return rows;
   }, [filters, sort, specialties, chanceBySpecialty]);
 
+  // Reset window when filters/sort change so users see top matches first.
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [filters, sort]);
+
+  const visibleRows = useMemo(
+    () => filtered.slice(0, visibleCount),
+    [filtered, visibleCount],
+  );
+  const hasMore = visibleCount < filtered.length;
+
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -586,7 +606,7 @@ export function UniversitiesCatalog({
                     ["", "Все"],
                     ["green", "Проходит"],
                     ["yellow", "На грани"],
-                    ["red", "Не хватает"],
+                    ["red", "Ниже проходного"],
                     ["none", "Без оценки"],
                   ] as const
                 ).map(([value, label]) => (
@@ -651,21 +671,14 @@ export function UniversitiesCatalog({
             </p>
           ) : (
             <ul className="space-y-3">
-              {filtered.map((item) => {
+              {visibleRows.map((item) => {
                 const institution = item.institution!;
                 const passing = latestPassingScore(item.passingScores);
                 const chance = chanceBySpecialty.get(item.id);
                 const isFav = favoriteIds.has(item.id);
-                const accent = accentForChance(chance?.status);
-                const gap = chance?.scoreGap;
-                const gapText =
-                  gap == null
-                    ? null
-                    : gap < 0
-                      ? `не хватает ${Math.abs(gap)}`
-                      : gap > 0
-                        ? `запас ${gap}`
-                        : "вровень";
+                const incomplete = isChanceIncomplete(chance);
+                const accent = accentForChance(chance?.status, incomplete);
+                const gapText = catalogChanceDetail(chance);
 
                 return (
                   <li
@@ -688,7 +701,7 @@ export function UniversitiesCatalog({
                                 )}
                               >
                                 <span className={cn("h-1.5 w-1.5 rounded-full", accent.dot)} />
-                                {catalogChanceLabel(chance.status)}
+                                {catalogChanceLabel(chance.status, chance)}
                               </span>
                             ) : (
                               <span className="rounded-full bg-[#eef2f5] px-2.5 py-0.5 text-xs font-bold text-text-muted">
@@ -745,9 +758,7 @@ export function UniversitiesCatalog({
                               accent.percent,
                             )}
                           >
-                            {chance
-                              ? `${Math.round(chance.probability ?? 0)}%`
-                              : "—"}
+                            {chance ? catalogChancePercent(chance) : "—"}
                           </div>
                         </div>
                       </div>
@@ -801,6 +812,24 @@ export function UniversitiesCatalog({
               })}
             </ul>
           )}
+
+          {hasMore ? (
+            <div className="flex justify-center pt-2">
+              <button
+                type="button"
+                onClick={() =>
+                  setVisibleCount((n) =>
+                    Math.min(n + PAGE_SIZE, filtered.length),
+                  )
+                }
+                className="rounded-[10px] border border-brand-700 px-4 py-2.5 text-sm font-bold text-brand-800 hover:bg-brand-100"
+              >
+                Показать ещё (
+                {Math.min(PAGE_SIZE, filtered.length - visibleCount)} из{" "}
+                {filtered.length - visibleCount})
+              </button>
+            </div>
+          ) : null}
         </section>
       </div>
     </div>
@@ -818,7 +847,15 @@ function Meta({ label, value }: { label: string; value: string }) {
   );
 }
 
-function accentForChance(status?: ChanceStatus) {
+function accentForChance(status?: ChanceStatus, incomplete = false) {
+  if (incomplete || !status) {
+    return {
+      border: "border-l-border",
+      badge: "bg-[#eef2f5] text-text-muted",
+      dot: "bg-text-muted",
+      percent: "text-text-muted",
+    };
+  }
   if (status === "green") {
     return {
       border: "border-l-emerald-500",
@@ -835,19 +872,11 @@ function accentForChance(status?: ChanceStatus) {
       percent: "text-amber-700",
     };
   }
-  if (status === "red") {
-    return {
-      border: "border-l-rose-500",
-      badge: "bg-rose-50 text-rose-800",
-      dot: "bg-rose-500",
-      percent: "text-rose-700",
-    };
-  }
   return {
-    border: "border-l-border",
-    badge: "bg-[#eef2f5] text-text-muted",
-    dot: "bg-text-muted",
-    percent: "text-text-muted",
+    border: "border-l-rose-500",
+    badge: "bg-rose-50 text-rose-800",
+    dot: "bg-rose-500",
+    percent: "text-rose-700",
   };
 }
 

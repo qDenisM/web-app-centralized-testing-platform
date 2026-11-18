@@ -1,11 +1,11 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState, type ReactNode } from "react";
 import { FormButton } from "@/components/ui/FormButton";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
+import { Alert } from "@/components/ui/Alert";
 import {
-  verificationStatusLabel,
   type ApplicantProfile,
   type OcrAttestatResponse,
   type UploadUrlResponse,
@@ -16,11 +16,50 @@ const MAX_BYTES = 10 * 1024 * 1024;
 type CertificateFormProps = {
   /** Embed inside profile settings without page-level title. */
   embedded?: boolean;
+  /** Extra content under the page title (status, history link, etc.). */
+  belowTitle?: ReactNode;
   onProfileChange?: (profile: ApplicantProfile) => void;
 };
 
+function UploadIcon() {
+  return (
+    <span
+      className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-brand-700 text-white shadow-[var(--shadow-soft)]"
+      aria-hidden
+    >
+      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.2">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M12 16V6m0 0-3.5 3.5M12 6l3.5 3.5M5 18h14"
+        />
+      </svg>
+    </span>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 10.5 8 14l7.5-8" />
+    </svg>
+  );
+}
+
+function InfoIcon() {
+  return (
+    <span
+      className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-700 text-[11px] font-black text-white"
+      aria-hidden
+    >
+      i
+    </span>
+  );
+}
+
 export function CertificateForm({
   embedded = false,
+  belowTitle,
   onProfileChange,
 }: CertificateFormProps) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -40,6 +79,7 @@ export function CertificateForm({
   const [fieldErrors, setFieldErrors] = useState<{
     attestatAverage?: string;
     storageKey?: string;
+    graduateName?: string;
   }>({});
   const [ready, setReady] = useState(false);
   const [savedOpen, setSavedOpen] = useState(false);
@@ -206,10 +246,18 @@ export function CertificateForm({
     e.preventDefault();
     setError(null);
 
-    const nextErrors: { attestatAverage?: string; storageKey?: string } = {};
+    const nextErrors: {
+      attestatAverage?: string;
+      storageKey?: string;
+      graduateName?: string;
+    } = {};
 
     if (!storageKey) {
       nextErrors.storageKey = "Загрузите скан аттестата";
+    }
+
+    if (graduateName.trim().length < 2) {
+      nextErrors.graduateName = "Укажите ФИО выпускника";
     }
 
     const trimmed = attestatAverage.trim();
@@ -235,7 +283,7 @@ export function CertificateForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           storageKey,
-          graduateName: graduateName || null,
+          graduateName: graduateName.trim(),
           schoolName: schoolName || null,
           attestatAverage: average,
           attestatIssuedOn: attestatIssuedOn || null,
@@ -268,6 +316,10 @@ export function CertificateForm({
     profile?.verification?.status === "pending" ||
     profile?.verification?.status === "approved";
 
+  const cardClass = embedded
+    ? "rounded-[10px] border border-border bg-white p-4 shadow-[var(--shadow-soft)]"
+    : "rounded-[14px] border border-border bg-white p-5 shadow-[var(--shadow-soft)]";
+
   return (
     <div className="space-y-5">
       {!embedded ? (
@@ -280,14 +332,7 @@ export function CertificateForm({
               Текущий средний балл в профиле: {profile.attestatAverage}
             </p>
           ) : null}
-          {profile?.verification?.status ? (
-            <p className="mt-1 text-sm text-text-secondary">
-              Статус анкеты:{" "}
-              <span className="font-semibold text-brand-800">
-                {verificationStatusLabel(profile.verification.status)}
-              </span>
-            </p>
-          ) : null}
+          {belowTitle}
         </div>
       ) : profile?.attestatAverage != null ? (
         <p className="text-sm font-semibold text-brand-800">
@@ -295,21 +340,9 @@ export function CertificateForm({
         </p>
       ) : null}
 
-      <div
-        className={
-          embedded
-            ? "grid gap-5"
-            : "grid gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]"
-        }
-      >
-        <section
-          className={
-            embedded
-              ? "rounded-[10px] border border-border bg-[#f4f7f9] p-4"
-              : "rounded-[14px] border border-border bg-white p-5 shadow-[var(--shadow-soft)]"
-          }
-        >
-          <h2 className="mb-3 text-sm font-bold text-brand-900">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+        <section className={cardClass}>
+          <h2 className="mb-3 text-base font-bold text-brand-900">
             Фотокопия аттестата
           </h2>
 
@@ -331,7 +364,7 @@ export function CertificateForm({
               if (locked) return;
               onFileChange(e.dataTransfer.files);
             }}
-            className="flex min-h-[220px] w-full flex-col items-center justify-center rounded-[10px] border-2 border-dashed border-border bg-[#f4f7f9] px-6 py-8 text-center transition-colors hover:border-brand-500 disabled:opacity-70"
+            className="flex min-h-[280px] w-full flex-col items-center justify-center rounded-[10px] border-2 border-dashed border-[#B7C5CE] bg-[#EDF4F8] px-6 py-8 text-center transition-colors hover:border-brand-500 disabled:opacity-70"
           >
             {uploading || ocrLoading ? (
               <span className="text-sm font-semibold text-brand-900">
@@ -341,6 +374,7 @@ export function CertificateForm({
               </span>
             ) : storageKey ? (
               <>
+                <UploadIcon />
                 <span className="text-sm font-bold text-brand-900">
                   Документ загружен
                 </span>
@@ -353,6 +387,7 @@ export function CertificateForm({
               </>
             ) : (
               <>
+                <UploadIcon />
                 <span className="text-sm font-bold text-text-primary">
                   Перетащите фото аттестата сюда
                 </span>
@@ -367,27 +402,14 @@ export function CertificateForm({
           </button>
         </section>
 
-        <section
-          className={
-            embedded
-              ? "rounded-[10px] border border-border bg-[#f4f7f9] p-4"
-              : "rounded-[14px] border border-border bg-white p-5 shadow-[var(--shadow-soft)]"
-          }
-        >
-          <div className="mb-4 flex items-start justify-between gap-3 border-b border-border pb-3">
-            <div>
-              <h2 className="text-sm font-bold text-brand-900">
-                Результаты распознавания
-              </h2>
-              <p className="text-xs text-text-muted">
-                Проверьте данные перед сохранением
-              </p>
-            </div>
-            {lowConfidence.length > 0 || ocrHint ? (
-              <span className="rounded-full border border-[#C6900A]/30 bg-[#FFF4D6] px-2.5 py-0.5 text-[11px] font-bold text-[#9A6B00]">
-                Заполните вручную
-              </span>
-            ) : null}
+        <section className={cardClass}>
+          <div className="mb-4">
+            <h2 className="text-base font-bold text-brand-900">
+              Результаты распознавания
+            </h2>
+            <p className="mt-0.5 text-xs text-text-muted">
+              Проверьте данные перед отправкой
+            </p>
           </div>
 
           {ocrHint ? (
@@ -401,9 +423,18 @@ export function CertificateForm({
               label="ФИО выпускника"
               name="graduateName"
               value={graduateName}
-              onChange={(e) => setGraduateName(e.target.value)}
+              onChange={(e) => {
+                setGraduateName(e.target.value);
+                if (fieldErrors.graduateName) {
+                  setFieldErrors((prev) => ({
+                    ...prev,
+                    graduateName: undefined,
+                  }));
+                }
+              }}
               placeholder="Иванов Иван Иванович"
               doubt={doubt("graduateName")}
+              error={fieldErrors.graduateName}
               disabled={locked}
             />
 
@@ -419,7 +450,7 @@ export function CertificateForm({
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Input
-                label="Средний балл (1.0–10.0)"
+                label="Средний балл аттестата"
                 name="attestatAverage"
                 type="number"
                 step="0.1"
@@ -451,8 +482,12 @@ export function CertificateForm({
               />
             </div>
 
-            <div className="rounded-[10px] border border-[#2F6FAE]/20 bg-[#E7F0F8] px-3 py-2.5 text-xs text-[#2F6FAE]">
-              Значение среднего балла будет записано в ваш конкурсный профиль.
+            <div className="flex items-start gap-2.5 rounded-[10px] border border-[#2F6FAE]/20 bg-[#E7F0F8] px-3 py-2.5 text-xs leading-relaxed text-[#2F6FAE]">
+              <InfoIcon />
+              <span>
+                Проверьте данные перед отправкой. Значение среднего балла будет
+                зафиксировано в вашем конкурсном профиле.
+              </span>
             </div>
 
             {fieldErrors.storageKey ? (
@@ -471,13 +506,11 @@ export function CertificateForm({
             ) : null}
 
             {error ? (
-              <p className="rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                {error}
-              </p>
+              <Alert compact>{error}</Alert>
             ) : null}
 
             {!locked ? (
-              <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border pt-3">
+              <div className="flex flex-wrap items-center justify-end gap-3 pt-1">
                 <FormButton
                   type="button"
                   variant="secondary"
@@ -490,7 +523,14 @@ export function CertificateForm({
                   className="w-auto px-4 py-2"
                   disabled={saving || uploading || ocrLoading}
                 >
-                  {saving ? "Сохраняем…" : "Подтвердить"}
+                  {saving ? (
+                    "Сохраняем…"
+                  ) : (
+                    <>
+                      <CheckIcon />
+                      Подтвердить
+                    </>
+                  )}
                 </FormButton>
               </div>
             ) : (

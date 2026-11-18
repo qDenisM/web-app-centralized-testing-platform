@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { FormButton } from "@/components/ui/FormButton";
 import { Input } from "@/components/ui/Input";
+import { Alert } from "@/components/ui/Alert";
 
 type RegisterOk = {
   homePath: string;
@@ -166,9 +167,7 @@ export function RegisterForm() {
           />
 
           {error ? (
-            <p className="rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {error}
-            </p>
+            <Alert compact>{error}</Alert>
           ) : null}
 
           <FormButton type="submit">Далее</FormButton>
@@ -229,9 +228,7 @@ export function RegisterForm() {
           />
 
           {error ? (
-            <p className="rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {error}
-            </p>
+            <Alert compact>{error}</Alert>
           ) : null}
 
           <div className="flex flex-col gap-2 sm:flex-row">

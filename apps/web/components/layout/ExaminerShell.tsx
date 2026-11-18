@@ -21,7 +21,10 @@ export function ExaminerShell({ children }: ExaminerShellProps) {
       navItems={navItems}
       roleName="Экзаменатор"
       homeHref="/"
-      profileLinks={[{ href: "/examiner", label: "Результаты ЦТ", icon: "profile" }]}
+      profileLinks={[
+        { href: "/examiner", label: "Результаты ЦТ", icon: "profile" },
+        { href: "/examiner/settings", label: "Настройки", icon: "settings" },
+      ]}
       headerBadge={<ActiveCampaignBadge />}
       sidebarFooter={
         <div className="space-y-1">

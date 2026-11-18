@@ -11,6 +11,8 @@ import {
   waitingHours,
   type ModeratorQueueResponse,
 } from "@/lib/moderator";
+import { Alert } from "@/components/ui/Alert";
+import { KpiCard } from "@/components/ui/KpiCard";
 
 type CtQueueResponse = {
   items: ExamApplication[];
@@ -302,9 +304,7 @@ export function ModeratorOverview() {
       </div>
 
       {error ? (
-        <p className="rounded-[10px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </p>
+        <Alert>{error}</Alert>
       ) : null}
 
       {loading ? (
@@ -312,13 +312,13 @@ export function ModeratorOverview() {
       ) : (
         <>
           <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <RichKpiCard
+            <KpiCard
               label="Данные на проверке"
               value={stats.pending}
               detail={`Новые: ${stats.fresh} • Повторные: ${stats.repeat}`}
               footer={`${stats.colleagues} в работе коллегами`}
             />
-            <RichKpiCard
+            <KpiCard
               label="Заявки на рассмотрении"
               value={stats.ctPending}
               detail={
@@ -330,14 +330,14 @@ export function ModeratorOverview() {
               }
               footer={`${stats.waitingPassport} ждут подтверждения паспорта`}
             />
-            <RichKpiCard
+            <KpiCard
               label="Ожидают дольше 2 суток"
               value={stats.slaOver.length}
               detail="Превышение SLA проверки данных"
               footer="Требуют первоочередной верификации"
               footerTone="warn"
             />
-            <RichKpiCard
+            <KpiCard
               label="Решено мной сегодня"
               value={stats.decidedToday}
               detail={`Одобрено: ${stats.approvedToday} • Исправления: ${stats.returnedToday} • Отказ: ${stats.rejectedToday}`}
@@ -386,33 +386,3 @@ export function ModeratorOverview() {
   );
 }
 
-function RichKpiCard({
-  label,
-  value,
-  detail,
-  footer,
-  footerTone = "muted",
-}: {
-  label: string;
-  value: number;
-  detail: string;
-  footer: string;
-  footerTone?: "muted" | "warn";
-}) {
-  return (
-    <div className="rounded-[14px] border border-border bg-white p-5 shadow-[var(--shadow-soft)]">
-      <p className="text-xs font-bold uppercase tracking-wide text-text-muted">
-        {label}
-      </p>
-      <p className="mt-2 text-3xl font-black text-brand-900">{value}</p>
-      <p className="mt-2 text-sm text-text-secondary">{detail}</p>
-      <p
-        className={`mt-3 border-t border-border pt-3 text-xs font-semibold ${
-          footerTone === "warn" ? "text-[#9A6B00]" : "text-text-muted"
-        }`}
-      >
-        {footer}
-      </p>
-    </div>
-  );
-}

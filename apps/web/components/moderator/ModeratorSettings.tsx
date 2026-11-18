@@ -1,13 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type {
-  ModeratorDefaultQueueTab,
-  NotificationPreferences,
-} from "@/lib/notification";
+import type { NotificationPreferences } from "@/lib/notification";
 import { FormButton } from "@/components/ui/FormButton";
-import { FilterSelect } from "@/components/ui/FilterSelect";
 import { cn } from "@/lib/utils";
+import { Alert } from "@/components/ui/Alert";
 
 type NotifKey = keyof Pick<
   NotificationPreferences,
@@ -39,16 +36,6 @@ const KIND_TOGGLES: Array<{
     description:
       "Напоминания о сроках, подтверждения своих решений и служебные события.",
   },
-];
-
-const QUEUE_TAB_OPTIONS: Array<{
-  value: ModeratorDefaultQueueTab;
-  label: string;
-}> = [
-  { value: "overview", label: "Обзор очереди" },
-  { value: "docs", label: "Проверка данных" },
-  { value: "applications", label: "Заявки на ЦТ" },
-  { value: "history", label: "История решений" },
 ];
 
 function Toggle({
@@ -91,7 +78,6 @@ export function ModeratorSettings() {
   const [draft, setDraft] = useState<NotificationPreferences | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyNotif, setBusyNotif] = useState(false);
-  const [busyProfile, setBusyProfile] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -128,9 +114,6 @@ export function ModeratorSettings() {
       draft.ctApplications !== prefs.ctApplications ||
       draft.decisions !== prefs.decisions);
 
-  const profileDirty =
-    !!draft && !!prefs && draft.defaultQueueTab !== prefs.defaultQueueTab;
-
   async function saveNotifications() {
     if (!draft) return;
     setBusyNotif(true);
@@ -164,34 +147,6 @@ export function ModeratorSettings() {
     }
   }
 
-  async function saveProfile() {
-    if (!draft) return;
-    setBusyProfile(true);
-    setError(null);
-    setMessage(null);
-    try {
-      const res = await fetch("/api/moderator/notification-preferences", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          defaultQueueTab: draft.defaultQueueTab,
-        }),
-      });
-      const json = (await res.json().catch(() => ({}))) as NotificationPreferences & {
-        error?: string;
-      };
-      if (!res.ok) {
-        setError(json.error || "Не удалось сохранить рабочий профиль");
-        return;
-      }
-      setPrefs(json);
-      setDraft(json);
-      setMessage("Рабочий профиль сохранён");
-    } finally {
-      setBusyProfile(false);
-    }
-  }
-
   return (
     <div className="space-y-5">
       <div>
@@ -199,15 +154,12 @@ export function ModeratorSettings() {
           Настройки
         </h1>
         <p className="mt-1 text-sm text-text-secondary">
-          Личные предпочтения кабинета модератора: уведомления и рабочий
-          профиль.
+          Личные предпочтения кабинета модератора: уведомления.
         </p>
       </div>
 
       {error ? (
-        <p className="rounded-[10px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </p>
+        <Alert>{error}</Alert>
       ) : null}
       {message ? (
         <p className="rounded-[10px] border border-brand-100 bg-brand-100/40 px-4 py-3 text-sm text-brand-900">
@@ -293,63 +245,6 @@ export function ModeratorSettings() {
                 Обновлено: {new Date(prefs.updatedAt).toLocaleString("ru-RU")}
               </p>
             ) : null}
-          </div>
-        )}
-      </section>
-
-      <section className="rounded-[14px] border border-border bg-white p-5 shadow-[var(--shadow-soft)]">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-extrabold uppercase tracking-wide text-text-muted">
-              Рабочий профиль
-            </h2>
-            <p className="mt-1 text-sm text-text-secondary">
-              Стартовый раздел кабинета после входа в роль модератора.
-            </p>
-          </div>
-          <FormButton
-            type="button"
-            className="w-auto px-4 py-2.5"
-            disabled={busyProfile || !profileDirty || loading || !draft}
-            onClick={() => void saveProfile()}
-          >
-            Сохранить
-          </FormButton>
-        </div>
-
-        {loading || !draft ? (
-          <p className="mt-6 text-sm text-text-muted">Загрузка…</p>
-        ) : (
-          <div className="mt-6 space-y-4">
-            <label className="grid gap-1.5">
-              <span className="text-sm font-semibold text-text-primary">
-                Раздел по умолчанию
-              </span>
-              <FilterSelect
-                value={draft.defaultQueueTab}
-                onChange={(e) =>
-                  setDraft((prev) =>
-                    prev
-                      ? {
-                          ...prev,
-                          defaultQueueTab: e.target
-                            .value as ModeratorDefaultQueueTab,
-                        }
-                      : prev,
-                  )
-                }
-              >
-                {QUEUE_TAB_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </FilterSelect>
-              <span className="text-xs text-text-muted">
-                Сохраняется в вашем профиле и готово для перехода при открытии
-                кабинета.
-              </span>
-            </label>
           </div>
         )}
       </section>

@@ -25,8 +25,8 @@ export type Notification = $Result.DefaultSelection<Prisma.$NotificationPayload>
 export type NotificationSettings = $Result.DefaultSelection<Prisma.$NotificationSettingsPayload>
 /**
  * Model NotificationPreferences
- * Per-user preferences (moderator cabinet: notification toggles + work defaults).
- * Delivery of moderator in-app events should call isUserPrefEnabled before create.
+ * Per-user preferences (moderator / examiner cabinets: notification toggles + work defaults).
+ * Delivery of role in-app events should call isUserPrefEnabled / isExaminerPrefEnabled before create.
  */
 export type NotificationPreferences = $Result.DefaultSelection<Prisma.$NotificationPreferencesPayload>
 
@@ -3089,6 +3089,9 @@ export namespace Prisma {
     verificationQueue: boolean | null
     ctApplications: boolean | null
     decisions: boolean | null
+    resultsPublish: boolean | null
+    resultsImport: boolean | null
+    examAssignments: boolean | null
     defaultQueueTab: string | null
     updatedAt: Date | null
   }
@@ -3099,6 +3102,9 @@ export namespace Prisma {
     verificationQueue: boolean | null
     ctApplications: boolean | null
     decisions: boolean | null
+    resultsPublish: boolean | null
+    resultsImport: boolean | null
+    examAssignments: boolean | null
     defaultQueueTab: string | null
     updatedAt: Date | null
   }
@@ -3109,6 +3115,9 @@ export namespace Prisma {
     verificationQueue: number
     ctApplications: number
     decisions: number
+    resultsPublish: number
+    resultsImport: number
+    examAssignments: number
     defaultQueueTab: number
     updatedAt: number
     _all: number
@@ -3121,6 +3130,9 @@ export namespace Prisma {
     verificationQueue?: true
     ctApplications?: true
     decisions?: true
+    resultsPublish?: true
+    resultsImport?: true
+    examAssignments?: true
     defaultQueueTab?: true
     updatedAt?: true
   }
@@ -3131,6 +3143,9 @@ export namespace Prisma {
     verificationQueue?: true
     ctApplications?: true
     decisions?: true
+    resultsPublish?: true
+    resultsImport?: true
+    examAssignments?: true
     defaultQueueTab?: true
     updatedAt?: true
   }
@@ -3141,6 +3156,9 @@ export namespace Prisma {
     verificationQueue?: true
     ctApplications?: true
     decisions?: true
+    resultsPublish?: true
+    resultsImport?: true
+    examAssignments?: true
     defaultQueueTab?: true
     updatedAt?: true
     _all?: true
@@ -3224,6 +3242,9 @@ export namespace Prisma {
     verificationQueue: boolean
     ctApplications: boolean
     decisions: boolean
+    resultsPublish: boolean
+    resultsImport: boolean
+    examAssignments: boolean
     defaultQueueTab: string
     updatedAt: Date
     _count: NotificationPreferencesCountAggregateOutputType | null
@@ -3251,6 +3272,9 @@ export namespace Prisma {
     verificationQueue?: boolean
     ctApplications?: boolean
     decisions?: boolean
+    resultsPublish?: boolean
+    resultsImport?: boolean
+    examAssignments?: boolean
     defaultQueueTab?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["notificationPreferences"]>
@@ -3261,6 +3285,9 @@ export namespace Prisma {
     verificationQueue?: boolean
     ctApplications?: boolean
     decisions?: boolean
+    resultsPublish?: boolean
+    resultsImport?: boolean
+    examAssignments?: boolean
     defaultQueueTab?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["notificationPreferences"]>
@@ -3271,6 +3298,9 @@ export namespace Prisma {
     verificationQueue?: boolean
     ctApplications?: boolean
     decisions?: boolean
+    resultsPublish?: boolean
+    resultsImport?: boolean
+    examAssignments?: boolean
     defaultQueueTab?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["notificationPreferences"]>
@@ -3281,11 +3311,14 @@ export namespace Prisma {
     verificationQueue?: boolean
     ctApplications?: boolean
     decisions?: boolean
+    resultsPublish?: boolean
+    resultsImport?: boolean
+    examAssignments?: boolean
     defaultQueueTab?: boolean
     updatedAt?: boolean
   }
 
-  export type NotificationPreferencesOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"userId" | "allEnabled" | "verificationQueue" | "ctApplications" | "decisions" | "defaultQueueTab" | "updatedAt", ExtArgs["result"]["notificationPreferences"]>
+  export type NotificationPreferencesOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"userId" | "allEnabled" | "verificationQueue" | "ctApplications" | "decisions" | "resultsPublish" | "resultsImport" | "examAssignments" | "defaultQueueTab" | "updatedAt", ExtArgs["result"]["notificationPreferences"]>
 
   export type $NotificationPreferencesPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "NotificationPreferences"
@@ -3296,6 +3329,18 @@ export namespace Prisma {
       verificationQueue: boolean
       ctApplications: boolean
       decisions: boolean
+      /**
+       * Examiner: confirmations / events around publishing CT results.
+       */
+      resultsPublish: boolean
+      /**
+       * Examiner: import job completion / errors.
+       */
+      resultsImport: boolean
+      /**
+       * Examiner: new approved applicants / exam assignments.
+       */
+      examAssignments: boolean
       /**
        * overview | docs | applications | history
        */
@@ -3729,6 +3774,9 @@ export namespace Prisma {
     readonly verificationQueue: FieldRef<"NotificationPreferences", 'Boolean'>
     readonly ctApplications: FieldRef<"NotificationPreferences", 'Boolean'>
     readonly decisions: FieldRef<"NotificationPreferences", 'Boolean'>
+    readonly resultsPublish: FieldRef<"NotificationPreferences", 'Boolean'>
+    readonly resultsImport: FieldRef<"NotificationPreferences", 'Boolean'>
+    readonly examAssignments: FieldRef<"NotificationPreferences", 'Boolean'>
     readonly defaultQueueTab: FieldRef<"NotificationPreferences", 'String'>
     readonly updatedAt: FieldRef<"NotificationPreferences", 'DateTime'>
   }
@@ -4142,6 +4190,9 @@ export namespace Prisma {
     verificationQueue: 'verificationQueue',
     ctApplications: 'ctApplications',
     decisions: 'decisions',
+    resultsPublish: 'resultsPublish',
+    resultsImport: 'resultsImport',
+    examAssignments: 'examAssignments',
     defaultQueueTab: 'defaultQueueTab',
     updatedAt: 'updatedAt'
   };
@@ -4350,6 +4401,9 @@ export namespace Prisma {
     verificationQueue?: BoolFilter<"NotificationPreferences"> | boolean
     ctApplications?: BoolFilter<"NotificationPreferences"> | boolean
     decisions?: BoolFilter<"NotificationPreferences"> | boolean
+    resultsPublish?: BoolFilter<"NotificationPreferences"> | boolean
+    resultsImport?: BoolFilter<"NotificationPreferences"> | boolean
+    examAssignments?: BoolFilter<"NotificationPreferences"> | boolean
     defaultQueueTab?: StringFilter<"NotificationPreferences"> | string
     updatedAt?: DateTimeFilter<"NotificationPreferences"> | Date | string
   }
@@ -4360,6 +4414,9 @@ export namespace Prisma {
     verificationQueue?: SortOrder
     ctApplications?: SortOrder
     decisions?: SortOrder
+    resultsPublish?: SortOrder
+    resultsImport?: SortOrder
+    examAssignments?: SortOrder
     defaultQueueTab?: SortOrder
     updatedAt?: SortOrder
   }
@@ -4373,6 +4430,9 @@ export namespace Prisma {
     verificationQueue?: BoolFilter<"NotificationPreferences"> | boolean
     ctApplications?: BoolFilter<"NotificationPreferences"> | boolean
     decisions?: BoolFilter<"NotificationPreferences"> | boolean
+    resultsPublish?: BoolFilter<"NotificationPreferences"> | boolean
+    resultsImport?: BoolFilter<"NotificationPreferences"> | boolean
+    examAssignments?: BoolFilter<"NotificationPreferences"> | boolean
     defaultQueueTab?: StringFilter<"NotificationPreferences"> | string
     updatedAt?: DateTimeFilter<"NotificationPreferences"> | Date | string
   }, "userId">
@@ -4383,6 +4443,9 @@ export namespace Prisma {
     verificationQueue?: SortOrder
     ctApplications?: SortOrder
     decisions?: SortOrder
+    resultsPublish?: SortOrder
+    resultsImport?: SortOrder
+    examAssignments?: SortOrder
     defaultQueueTab?: SortOrder
     updatedAt?: SortOrder
     _count?: NotificationPreferencesCountOrderByAggregateInput
@@ -4399,6 +4462,9 @@ export namespace Prisma {
     verificationQueue?: BoolWithAggregatesFilter<"NotificationPreferences"> | boolean
     ctApplications?: BoolWithAggregatesFilter<"NotificationPreferences"> | boolean
     decisions?: BoolWithAggregatesFilter<"NotificationPreferences"> | boolean
+    resultsPublish?: BoolWithAggregatesFilter<"NotificationPreferences"> | boolean
+    resultsImport?: BoolWithAggregatesFilter<"NotificationPreferences"> | boolean
+    examAssignments?: BoolWithAggregatesFilter<"NotificationPreferences"> | boolean
     defaultQueueTab?: StringWithAggregatesFilter<"NotificationPreferences"> | string
     updatedAt?: DateTimeWithAggregatesFilter<"NotificationPreferences"> | Date | string
   }
@@ -4542,6 +4608,9 @@ export namespace Prisma {
     verificationQueue?: boolean
     ctApplications?: boolean
     decisions?: boolean
+    resultsPublish?: boolean
+    resultsImport?: boolean
+    examAssignments?: boolean
     defaultQueueTab?: string
     updatedAt?: Date | string
   }
@@ -4552,6 +4621,9 @@ export namespace Prisma {
     verificationQueue?: boolean
     ctApplications?: boolean
     decisions?: boolean
+    resultsPublish?: boolean
+    resultsImport?: boolean
+    examAssignments?: boolean
     defaultQueueTab?: string
     updatedAt?: Date | string
   }
@@ -4562,6 +4634,9 @@ export namespace Prisma {
     verificationQueue?: BoolFieldUpdateOperationsInput | boolean
     ctApplications?: BoolFieldUpdateOperationsInput | boolean
     decisions?: BoolFieldUpdateOperationsInput | boolean
+    resultsPublish?: BoolFieldUpdateOperationsInput | boolean
+    resultsImport?: BoolFieldUpdateOperationsInput | boolean
+    examAssignments?: BoolFieldUpdateOperationsInput | boolean
     defaultQueueTab?: StringFieldUpdateOperationsInput | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -4572,6 +4647,9 @@ export namespace Prisma {
     verificationQueue?: BoolFieldUpdateOperationsInput | boolean
     ctApplications?: BoolFieldUpdateOperationsInput | boolean
     decisions?: BoolFieldUpdateOperationsInput | boolean
+    resultsPublish?: BoolFieldUpdateOperationsInput | boolean
+    resultsImport?: BoolFieldUpdateOperationsInput | boolean
+    examAssignments?: BoolFieldUpdateOperationsInput | boolean
     defaultQueueTab?: StringFieldUpdateOperationsInput | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -4582,6 +4660,9 @@ export namespace Prisma {
     verificationQueue?: boolean
     ctApplications?: boolean
     decisions?: boolean
+    resultsPublish?: boolean
+    resultsImport?: boolean
+    examAssignments?: boolean
     defaultQueueTab?: string
     updatedAt?: Date | string
   }
@@ -4592,6 +4673,9 @@ export namespace Prisma {
     verificationQueue?: BoolFieldUpdateOperationsInput | boolean
     ctApplications?: BoolFieldUpdateOperationsInput | boolean
     decisions?: BoolFieldUpdateOperationsInput | boolean
+    resultsPublish?: BoolFieldUpdateOperationsInput | boolean
+    resultsImport?: BoolFieldUpdateOperationsInput | boolean
+    examAssignments?: BoolFieldUpdateOperationsInput | boolean
     defaultQueueTab?: StringFieldUpdateOperationsInput | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -4602,6 +4686,9 @@ export namespace Prisma {
     verificationQueue?: BoolFieldUpdateOperationsInput | boolean
     ctApplications?: BoolFieldUpdateOperationsInput | boolean
     decisions?: BoolFieldUpdateOperationsInput | boolean
+    resultsPublish?: BoolFieldUpdateOperationsInput | boolean
+    resultsImport?: BoolFieldUpdateOperationsInput | boolean
+    examAssignments?: BoolFieldUpdateOperationsInput | boolean
     defaultQueueTab?: StringFieldUpdateOperationsInput | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -4767,6 +4854,9 @@ export namespace Prisma {
     verificationQueue?: SortOrder
     ctApplications?: SortOrder
     decisions?: SortOrder
+    resultsPublish?: SortOrder
+    resultsImport?: SortOrder
+    examAssignments?: SortOrder
     defaultQueueTab?: SortOrder
     updatedAt?: SortOrder
   }
@@ -4777,6 +4867,9 @@ export namespace Prisma {
     verificationQueue?: SortOrder
     ctApplications?: SortOrder
     decisions?: SortOrder
+    resultsPublish?: SortOrder
+    resultsImport?: SortOrder
+    examAssignments?: SortOrder
     defaultQueueTab?: SortOrder
     updatedAt?: SortOrder
   }
@@ -4787,6 +4880,9 @@ export namespace Prisma {
     verificationQueue?: SortOrder
     ctApplications?: SortOrder
     decisions?: SortOrder
+    resultsPublish?: SortOrder
+    resultsImport?: SortOrder
+    examAssignments?: SortOrder
     defaultQueueTab?: SortOrder
     updatedAt?: SortOrder
   }

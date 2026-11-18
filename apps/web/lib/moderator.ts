@@ -9,6 +9,11 @@ export type ModeratorVerificationItem = {
   decidedAt: string | null;
   /** Short-lived MinIO signed GET URL; present on verification detail only. */
   attestatScanUrl?: string | null;
+  /** Identity-service profile (account ФИО / email) for moderator queues. */
+  applicant?: {
+    fullName: string | null;
+    email: string | null;
+  } | null;
   profile: {
     id: string;
     userId: string;
@@ -124,11 +129,32 @@ export function moderatorStatusLabel(status: string): string {
   }
 }
 
+/**
+ * Whose application is this? Prefer account ФИО from identity, then document
+ * graduateName, then email — never a useless single-letter placeholder alone.
+ */
 export function applicantDisplayName(item: ModeratorVerificationItem): string {
-  return (
-    item.profile.graduateName ||
-    `Абитуриент ${item.profile.userId.slice(0, 8)}`
-  );
+  const fromIdentity = item.applicant?.fullName?.trim();
+  if (fromIdentity) return fromIdentity;
+
+  const fromDoc = item.profile.graduateName?.trim();
+  if (fromDoc && fromDoc.length >= 2) return fromDoc;
+
+  const email = item.applicant?.email?.trim();
+  if (email) return email;
+
+  return `Абитуриент ${item.profile.userId.slice(0, 8)}`;
+}
+
+export function applicantSecondaryLine(
+  item: ModeratorVerificationItem,
+): string {
+  const email = item.applicant?.email?.trim();
+  if (email) return email;
+  if (item.profile.passportSeries && item.profile.passportNumber) {
+    return `${item.profile.passportSeries} ${item.profile.passportNumber}`;
+  }
+  return `ID ${item.profile.userId.slice(0, 8)}…`;
 }
 
 export function passportDisplay(item: ModeratorVerificationItem): string | null {

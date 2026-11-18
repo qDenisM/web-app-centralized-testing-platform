@@ -28,13 +28,19 @@ export type ModeratorDefaultQueueTab =
   | "applications"
   | "history";
 
-/** Per-user prefs (moderator cabinet). Stored in notification-service. */
+/** Per-user prefs (moderator / examiner cabinets). Stored in notification-service. */
 export type NotificationPreferences = {
   userId: string;
   allEnabled: boolean;
   verificationQueue: boolean;
   ctApplications: boolean;
   decisions: boolean;
+  /** Examiner: events around publishing CT results. */
+  resultsPublish: boolean;
+  /** Examiner: import job completion / errors. */
+  resultsImport: boolean;
+  /** Examiner: new approved applicants / exam assignments. */
+  examAssignments: boolean;
   defaultQueueTab: ModeratorDefaultQueueTab;
   updatedAt: string;
 };

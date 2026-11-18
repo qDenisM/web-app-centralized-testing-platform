@@ -21,6 +21,7 @@ dist/
 
 # prisma generated clients
 apps/*/generated/
+apps/notification-service/generated/
 
 # misc
 .DS_Store

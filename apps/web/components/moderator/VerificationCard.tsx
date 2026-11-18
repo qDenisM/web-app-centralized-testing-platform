@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { FilterSelect } from "@/components/ui/FilterSelect";
 import { FormButton } from "@/components/ui/FormButton";
 import { Modal } from "@/components/ui/Modal";
 import type { CatalogSubject } from "@/lib/catalog";
@@ -20,6 +21,7 @@ import {
   type ModeratorVerificationItem,
 } from "@/lib/moderator";
 import { cn } from "@/lib/utils";
+import { Alert } from "@/components/ui/Alert";
 
 function releaseVerificationLock(verificationId: string) {
   void fetch(`/api/applicant/moderator/verifications/${verificationId}/unlock`, {
@@ -34,7 +36,16 @@ type VerificationCardProps = {
   id: string;
 };
 
-type DialogKind = "return" | "reject" | null;
+type DialogKind = "return" | "reject" | "status" | null;
+
+type VerificationStatus = "pending" | "approved" | "returned" | "rejected";
+
+const STATUS_OPTIONS: Array<{ value: VerificationStatus; label: string }> = [
+  { value: "pending", label: "На проверке" },
+  { value: "approved", label: "Подтверждено" },
+  { value: "returned", label: "На исправление" },
+  { value: "rejected", label: "Отказано" },
+];
 
 type FieldKey =
   | "fio"
@@ -105,6 +116,9 @@ export function VerificationCard({ id }: VerificationCardProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dialog, setDialog] = useState<DialogKind>(null);
+  const [statusTarget, setStatusTarget] =
+    useState<VerificationStatus>("pending");
+  const [statusReason, setStatusReason] = useState("");
   const [docTab, setDocTab] = useState<DocTab>("attestat");
   const [zoom, setZoom] = useState(100);
   const [rotation, setRotation] = useState(0);
@@ -314,19 +328,28 @@ export function VerificationCard({ id }: VerificationCardProps) {
     }
   }
 
-  async function decide(decision: "approved" | "returned" | "rejected") {
+  async function decide(
+    decision: VerificationStatus,
+    options?: { reason?: string; stay?: boolean },
+  ) {
     setError(null);
 
     const composedReason =
-      decision === "returned" ? composeReturnReason() : reason.trim();
+      options?.reason !== undefined
+        ? options.reason.trim()
+        : decision === "returned"
+          ? composeReturnReason()
+          : reason.trim();
 
-    if (decision === "rejected" && !composedReason) {
-      setError("Укажите комментарий");
-      return;
-    }
-
-    if (decision === "returned" && !composedReason) {
-      setError("Отметьте поля с ошибками или укажите комментарий");
+    if (
+      (decision === "rejected" || decision === "returned") &&
+      !composedReason
+    ) {
+      setError(
+        decision === "returned"
+          ? "Отметьте поля с ошибками или укажите комментарий"
+          : "Укажите комментарий",
+      );
       return;
     }
 
@@ -349,13 +372,19 @@ export function VerificationCard({ id }: VerificationCardProps) {
         setError(data.error || "Не удалось вынести решение");
         return;
       }
-      // Keep lockedBy after decide (history); do not unlock on leave.
-      skipUnlockRef.current = true;
-      holdLockRef.current = false;
+      // Keep lockedBy after decide (history); do not unlock on leave
+      // unless the card was reopened to pending for continued review.
+      skipUnlockRef.current = data.status !== "pending";
+      holdLockRef.current = data.status === "pending";
       setItem(data);
       setDialog(null);
       setReason("");
+      setStatusReason("");
       setFieldNotes({});
+      if (options?.stay) {
+        router.refresh();
+        return;
+      }
       router.push("/moderator/docs");
       router.refresh();
     } catch {
@@ -363,6 +392,16 @@ export function VerificationCard({ id }: VerificationCardProps) {
     } finally {
       setSaving(false);
     }
+  }
+
+  function openStatusChange() {
+    if (!item) return;
+    const current = item.status as VerificationStatus;
+    const fallback =
+      STATUS_OPTIONS.find((o) => o.value !== current)?.value ?? "pending";
+    setStatusTarget(fallback);
+    setStatusReason("");
+    setDialog("status");
   }
 
   async function releaseAndLeave() {
@@ -403,7 +442,14 @@ export function VerificationCard({ id }: VerificationCardProps) {
     pending && meId && item.lockedBy && item.lockedBy !== meId,
   );
   const canDecide = pending && !lockedByOther;
+  const canChangeStatus =
+    !lockedByOther &&
+    (item.status === "pending" ||
+      item.status === "approved" ||
+      item.status === "returned" ||
+      item.status === "rejected");
   const metaLine = [
+    item.applicant?.email || null,
     versionLabelInline(item.version),
     item.submittedAt ? formatSubmittedAt(item.submittedAt) : null,
     `user ${item.profile.userId.slice(0, 8)}…`,
@@ -758,9 +804,7 @@ export function VerificationCard({ id }: VerificationCardProps) {
       </div>
 
       {error ? (
-        <p className="rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-          {error}
-        </p>
+        <Alert compact>{error}</Alert>
       ) : null}
 
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-white/95 backdrop-blur">
@@ -808,11 +852,24 @@ export function VerificationCard({ id }: VerificationCardProps) {
               </FormButton>
             </div>
           ) : (
-            <p className="text-sm font-semibold text-text-secondary">
-              {lockedByOther
-                ? "Занято другим модератором"
-                : moderatorStatusLabel(item.status)}
-            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-semibold text-text-secondary">
+                {lockedByOther
+                  ? "Занято другим модератором"
+                  : moderatorStatusLabel(item.status)}
+              </p>
+              {canChangeStatus && !lockedByOther ? (
+                <FormButton
+                  type="button"
+                  variant="secondary"
+                  className="w-auto px-4 py-2"
+                  disabled={saving}
+                  onClick={openStatusChange}
+                >
+                  Изменить статус
+                </FormButton>
+              ) : null}
+            </div>
           )}
         </div>
       </div>
@@ -920,6 +977,91 @@ export function VerificationCard({ id }: VerificationCardProps) {
           документов.
         </p>
       </ConfirmDialog>
+
+      <Modal
+        open={dialog === "status"}
+        onClose={() => setDialog(null)}
+        title="Изменить статус проверки"
+        subtitle="Абитуриент получит уведомление о новом решении"
+        size="sm"
+        footer={
+          <>
+            <FormButton
+              type="button"
+              variant="secondary"
+              className="w-auto px-4 py-2.5"
+              onClick={() => setDialog(null)}
+              disabled={saving}
+            >
+              Отмена
+            </FormButton>
+            <FormButton
+              type="button"
+              className="w-auto px-4 py-2.5"
+              disabled={
+                saving ||
+                !item ||
+                statusTarget === item.status ||
+                ((statusTarget === "rejected" ||
+                  statusTarget === "returned") &&
+                  !statusReason.trim())
+              }
+              onClick={() =>
+                void decide(statusTarget, {
+                  reason: statusReason,
+                  stay: true,
+                })
+              }
+            >
+              Сохранить статус
+            </FormButton>
+          </>
+        }
+      >
+        <label className="block space-y-1.5">
+          <span className="text-sm font-semibold text-brand-900">
+            Новый статус
+          </span>
+          <FilterSelect
+            value={statusTarget}
+            onChange={(e) =>
+              setStatusTarget(e.target.value as VerificationStatus)
+            }
+          >
+            {STATUS_OPTIONS.filter((opt) => opt.value !== item.status).map(
+              (opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ),
+            )}
+          </FilterSelect>
+        </label>
+        {statusTarget === "rejected" || statusTarget === "returned" ? (
+          <label className="mt-3 block space-y-1.5">
+            <span className="text-sm font-semibold text-brand-900">
+              Причина *
+            </span>
+            <textarea
+              value={statusReason}
+              onChange={(e) => setStatusReason(e.target.value)}
+              rows={3}
+              className="w-full rounded-[10px] border border-border px-3.5 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+              placeholder={
+                statusTarget === "returned"
+                  ? "Что нужно исправить"
+                  : "Причина отклонения"
+              }
+            />
+          </label>
+        ) : (
+          <p className="mt-3 text-sm text-text-secondary">
+            {statusTarget === "pending"
+              ? "Заявка вернётся в очередь на повторную проверку."
+              : "Данные снова будут считаться подтверждёнными."}
+          </p>
+        )}
+      </Modal>
     </div>
   );
 }

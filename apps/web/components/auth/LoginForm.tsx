@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { FormButton } from "@/components/ui/FormButton";
 import { Input } from "@/components/ui/Input";
+import { Alert } from "@/components/ui/Alert";
 
 type LoginOk = {
   user: { role: string };
@@ -90,9 +91,7 @@ export function LoginForm() {
       />
 
       {error ? (
-        <p className="rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-          {error}
-        </p>
+        <Alert compact>{error}</Alert>
       ) : null}
 
       <FormButton disabled={loading}>

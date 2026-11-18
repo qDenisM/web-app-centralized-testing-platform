@@ -21,9 +21,17 @@ export function Input({
   return (
     <label className="block space-y-1.5" htmlFor={inputId}>
       <span className="flex items-center justify-between gap-2 text-sm font-semibold text-text-secondary">
-        {label}
+        <span>{label}</span>
         {doubt ? (
-          <span className="text-[10px] font-bold text-[#9A6B00]">
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-[#E2B45A]/55 bg-[#FFF4D6] px-2 py-0.5 text-[10px] font-bold leading-tight text-[#9A6B00]">
+            <svg
+              viewBox="0 0 16 16"
+              className="h-3 w-3 shrink-0"
+              fill="currentColor"
+              aria-hidden
+            >
+              <path d="M8.87 2.4a1 1 0 0 0-1.74 0L1.2 12.1A1 1 0 0 0 2.07 13.5h11.86a1 1 0 0 0 .87-1.4L8.87 2.4ZM8 6.25a.75.75 0 0 1 .75.75v2a.75.75 0 0 1-1.5 0v-2A.75.75 0 0 1 8 6.25Zm0 5.25a.9.9 0 1 1 0-1.8.9.9 0 0 1 0 1.8Z" />
+            </svg>
             Проверьте: распознано с сомнениями
           </span>
         ) : null}

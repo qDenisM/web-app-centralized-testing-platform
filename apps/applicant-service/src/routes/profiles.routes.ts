@@ -5,7 +5,12 @@ import { reportAudit } from "../audit.js";
 import { requireApplicant } from "../auth.js";
 import { config } from "../config.js";
 import { prisma } from "../db.js";
-import { profileJson } from "../serializers.js";
+import { publishVerificationSubmitted } from "../notify.js";
+import {
+  profileJson,
+  verificationDetailJson,
+  verificationHistoryItemJson,
+} from "../serializers.js";
 import {
   buildAttestatStorageKey,
   createPresignedUpload,
@@ -25,6 +30,10 @@ const ProfileUpdateSchema = z.object({
   birthDate: z.string().nullable().optional(),
   passportSeries: z.string().nullable().optional(),
   passportNumber: z.string().nullable().optional(),
+  selectedCtResultIds: z
+    .array(z.string().uuid())
+    .max(3, "Можно выбрать не более 3 результатов ЦТ")
+    .optional(),
 });
 
 const UploadUrlSchema = z.object({
@@ -34,7 +43,11 @@ const UploadUrlSchema = z.object({
 
 const AttestatConfirmSchema = z.object({
   storageKey: z.string().min(1),
-  graduateName: z.string().nullable().optional(),
+  graduateName: z
+    .string()
+    .trim()
+    .min(2, "Укажите ФИО выпускника")
+    .max(200),
   schoolName: z.string().nullable().optional(),
   attestatAverage: z.number().min(0).max(10).nullable().optional(),
   attestatIssuedOn: z.string().nullable().optional(),
@@ -79,6 +92,9 @@ function assertProfileReadyForSubmit(profile: ProfileWithLatestVerification) {
   if (profile.attestatAverage == null) {
     throw AppError.badRequest("Укажите средний балл аттестата");
   }
+  if (!profile.graduateName?.trim() || profile.graduateName.trim().length < 2) {
+    throw AppError.badRequest("Укажите ФИО выпускника по аттестату");
+  }
 }
 
 function isProfileCompleteForSubmit(profile: ProfileWithLatestVerification) {
@@ -87,11 +103,16 @@ function isProfileCompleteForSubmit(profile: ProfileWithLatestVerification) {
       profile.passportSeries &&
       profile.passportNumber &&
       profile.storageKey &&
-      profile.attestatAverage != null,
+      profile.attestatAverage != null &&
+      profile.graduateName?.trim() &&
+      profile.graduateName.trim().length >= 2,
   );
 }
 
-/** draft / returned / rejected → pending so the item appears in moderator queue. */
+/**
+ * draft → pending (same version).
+ * returned / rejected → new version pending (previous decision kept in history).
+ */
 async function markVerificationPending(
   profile: ProfileWithLatestVerification,
   actorId: string,
@@ -107,22 +128,42 @@ async function markVerificationPending(
     throw AppError.conflict("Анкета уже подтверждена");
   }
 
-  await prisma.verification.update({
-    where: { id: latest.id },
-    data: {
-      status: "pending",
-      submittedAt: new Date(),
-      rejectReason: null,
-      decidedAt: null,
-      lockedBy: null,
-    },
-  });
+  let verificationId = latest.id;
+
+  if (latest.status === "draft") {
+    await prisma.verification.update({
+      where: { id: latest.id },
+      data: {
+        status: "pending",
+        submittedAt: new Date(),
+        rejectReason: null,
+        decidedAt: null,
+        lockedBy: null,
+      },
+    });
+  } else {
+    // returned / rejected — keep decided row, open a new version for resubmit
+    const created = await prisma.verification.create({
+      data: {
+        profileId: profile.id,
+        version: latest.version + 1,
+        status: "pending",
+        submittedAt: new Date(),
+      },
+    });
+    verificationId = created.id;
+  }
 
   reportAudit({
     actorId,
     targetId: actorId,
     action: "verification_submit",
-    payload: { verificationId: latest.id },
+    payload: { verificationId },
+  });
+
+  await publishVerificationSubmitted({
+    userId: actorId,
+    verificationId,
   });
 
   return prisma.applicantProfile.findUnique({
@@ -157,6 +198,14 @@ profilesRoutes.put(
       const body = ProfileUpdateSchema.parse(req.body);
       await getOrCreateProfile(userId);
 
+      if (body.selectedCtResultIds !== undefined) {
+        const unique = [...new Set(body.selectedCtResultIds)];
+        if (unique.length > 3) {
+          throw AppError.badRequest("Можно выбрать не более 3 результатов ЦТ");
+        }
+        body.selectedCtResultIds = unique;
+      }
+
       const profile = await prisma.applicantProfile.update({
         where: { userId },
         data: {
@@ -170,6 +219,9 @@ profilesRoutes.put(
             : {}),
           ...(body.passportNumber !== undefined
             ? { passportNumber: body.passportNumber }
+            : {}),
+          ...(body.selectedCtResultIds !== undefined
+            ? { selectedCtResultIds: body.selectedCtResultIds }
             : {}),
         },
         include: profileInclude,
@@ -421,6 +473,56 @@ profilesRoutes.post(
       });
 
       res.status(200).json(profileJson(updated!));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+profilesRoutes.get(
+  "/profile/me/verifications",
+  ...requireApplicant,
+  async (req, res, next) => {
+    try {
+      const userId = req.user?.sub;
+      if (!userId) throw AppError.unauthorized();
+
+      const profile = await getOrCreateProfile(userId);
+      const rows = await prisma.verification.findMany({
+        where: { profileId: profile.id },
+        orderBy: [{ version: "desc" }, { submittedAt: "desc" }],
+      });
+
+      res.status(200).json({
+        items: rows.map(verificationHistoryItemJson),
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+profilesRoutes.get(
+  "/profile/me/verifications/:id",
+  ...requireApplicant,
+  async (req, res, next) => {
+    try {
+      const userId = req.user?.sub;
+      if (!userId) throw AppError.unauthorized();
+
+      const id = String(req.params.id);
+      const profile = await getOrCreateProfile(userId);
+
+      const row = await prisma.verification.findFirst({
+        where: { id, profileId: profile.id },
+        include: { profile: true },
+      });
+
+      if (!row) {
+        throw AppError.notFound("Заявка не найдена");
+      }
+
+      res.status(200).json(verificationDetailJson(row));
     } catch (err) {
       next(err);
     }

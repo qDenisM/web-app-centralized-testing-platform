@@ -16,6 +16,9 @@ const PatchSchema = z.object({
   verificationQueue: z.boolean().optional(),
   ctApplications: z.boolean().optional(),
   decisions: z.boolean().optional(),
+  resultsPublish: z.boolean().optional(),
+  resultsImport: z.boolean().optional(),
+  examAssignments: z.boolean().optional(),
   defaultQueueTab: z
     .enum(["overview", "docs", "applications", "history"])
     .optional(),
@@ -61,6 +64,15 @@ preferencesRoutes.patch(
           ...(body.decisions !== undefined
             ? { decisions: body.decisions }
             : {}),
+          ...(body.resultsPublish !== undefined
+            ? { resultsPublish: body.resultsPublish }
+            : {}),
+          ...(body.resultsImport !== undefined
+            ? { resultsImport: body.resultsImport }
+            : {}),
+          ...(body.examAssignments !== undefined
+            ? { examAssignments: body.examAssignments }
+            : {}),
           ...(body.defaultQueueTab !== undefined
             ? {
                 defaultQueueTab: parseDefaultQueueTab(body.defaultQueueTab),
@@ -75,6 +87,9 @@ preferencesRoutes.patch(
         verificationQueue: row.verificationQueue,
         ctApplications: row.ctApplications,
         decisions: row.decisions,
+        resultsPublish: row.resultsPublish,
+        resultsImport: row.resultsImport,
+        examAssignments: row.examAssignments,
         defaultQueueTab: parseDefaultQueueTab(row.defaultQueueTab),
         updatedAt: row.updatedAt.toISOString(),
       });

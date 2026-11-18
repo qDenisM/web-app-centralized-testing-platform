@@ -15,6 +15,7 @@ import { Drawer } from "@/components/ui/Drawer";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { FormButton } from "@/components/ui/FormButton";
+import { Alert } from "@/components/ui/Alert";
 
 const ROLES = ["applicant", "moderator", "examiner", "admin"] as const;
 const PAGE_SIZE = 10;
@@ -474,9 +475,7 @@ export function AdminUsers() {
       </section>
 
       {error ? (
-        <p className="rounded-[10px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </p>
+        <Alert>{error}</Alert>
       ) : null}
 
       <section className="overflow-hidden rounded-[14px] border border-border bg-white shadow-[var(--shadow-soft)]">
@@ -750,9 +749,7 @@ export function AdminUsers() {
                 {auditLoading ? (
                   <p className="text-text-muted">Загрузка журнала…</p>
                 ) : auditError ? (
-                  <p className="rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 text-red-700">
-                    {auditError}
-                  </p>
+                  <Alert compact>{auditError}</Alert>
                 ) : auditItems.length === 0 ? (
                   <p className="text-text-muted">Записей в журнале пока нет.</p>
                 ) : (
@@ -858,9 +855,7 @@ export function AdminUsers() {
             Пустая дата — бессрочная блокировка. Нельзя выбрать прошедшую дату.
           </p>
           {blockError ? (
-            <p className="rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 font-semibold text-red-700">
-              {blockError}
-            </p>
+            <Alert compact className="font-semibold">{blockError}</Alert>
           ) : null}
         </div>
       </Modal>

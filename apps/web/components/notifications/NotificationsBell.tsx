@@ -1,41 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  formatNotificationTime,
-  type AppNotification,
-} from "@/lib/notification";
+import { useEffect, useRef, useState } from "react";
+import { formatNotificationTime } from "@/lib/notification";
+import { useNotifications } from "@/lib/use-notifications";
 import { cn } from "@/lib/utils";
 
-export function NotificationsBell() {
+type NotificationsBellProps = {
+  allHref?: string;
+};
+
+export function NotificationsBell({
+  allHref = "/app/notifications",
+}: NotificationsBellProps) {
   const [open, setOpen] = useState(false);
-  const [items, setItems] = useState<AppNotification[]>([]);
-  const [loading, setLoading] = useState(true);
   const rootRef = useRef<HTMLDivElement>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/notifications/me");
-      const json = (await res.json().catch(() => [])) as
-        | AppNotification[]
-        | { error?: string };
-      if (!res.ok || !Array.isArray(json)) {
-        setItems([]);
-        return;
-      }
-      setItems(json);
-    } catch {
-      setItems([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const { items, loading, load, markRead, markAllRead, unreadCount } =
+    useNotifications();
 
   useEffect(() => {
     if (!open) return;
@@ -50,26 +31,7 @@ export function NotificationsBell() {
     return () => document.removeEventListener("mousedown", onDocClick);
   }, [open]);
 
-  const unread = items.filter((item) => !item.isRead);
   const preview = items.slice(0, 5);
-
-  async function markRead(id: string) {
-    const res = await fetch(`/api/notifications/${id}/read`, { method: "POST" });
-    if (!res.ok) return;
-    setItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, isRead: true } : item)),
-    );
-  }
-
-  async function markAllRead() {
-    const unreadIds = items.filter((item) => !item.isRead).map((item) => item.id);
-    await Promise.all(
-      unreadIds.map((id) =>
-        fetch(`/api/notifications/${id}/read`, { method: "POST" }),
-      ),
-    );
-    setItems((prev) => prev.map((item) => ({ ...item, isRead: true })));
-  }
 
   return (
     <div className="relative" ref={rootRef}>
@@ -79,7 +41,7 @@ export function NotificationsBell() {
         aria-label="Уведомления"
         onClick={() => {
           setOpen((value) => !value);
-          if (!open) void load();
+          if (!open) void load({ silent: true });
         }}
         className="relative rounded-[8px] p-2 text-text-secondary transition-colors hover:bg-[#f4f7f9] hover:text-brand-900"
       >
@@ -96,7 +58,7 @@ export function NotificationsBell() {
           <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
           <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
         </svg>
-        {unread.length > 0 ? (
+        {unreadCount > 0 ? (
           <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-[#c94343] ring-2 ring-white" />
         ) : null}
       </button>
@@ -105,9 +67,9 @@ export function NotificationsBell() {
         <div className="absolute right-0 z-50 mt-2 w-80 rounded-[12px] border border-border bg-white p-3 shadow-[0_12px_28px_-4px_rgba(11,58,74,0.12),0_4px_12px_-2px_rgba(11,58,74,0.04)]">
           <div className="mb-2 flex items-center justify-between border-b border-border pb-2">
             <span className="text-xs font-bold text-brand-900">
-              Уведомления{unread.length ? ` (${unread.length})` : ""}
+              Уведомления{unreadCount ? ` (${unreadCount})` : ""}
             </span>
-            {unread.length > 0 ? (
+            {unreadCount > 0 ? (
               <button
                 type="button"
                 onClick={() => void markAllRead()}
@@ -118,7 +80,7 @@ export function NotificationsBell() {
             ) : null}
           </div>
 
-          {loading ? (
+          {loading && items.length === 0 ? (
             <p className="py-4 text-center text-xs text-text-muted">Загрузка…</p>
           ) : preview.length === 0 ? (
             <p className="py-4 text-center text-xs text-text-muted">
@@ -158,7 +120,7 @@ export function NotificationsBell() {
           )}
 
           <Link
-            href="/app/notifications"
+            href={allHref}
             onClick={() => setOpen(false)}
             className="mt-3 block rounded-[8px] px-2 py-2 text-center text-xs font-bold text-brand-700 hover:bg-[#f4f7f9]"
           >

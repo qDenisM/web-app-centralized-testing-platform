@@ -8,6 +8,7 @@ type DrawerProps = {
   open: boolean;
   onClose: () => void;
   title: string;
+  subtitle?: string;
   children: ReactNode;
   footer?: ReactNode;
   widthClassName?: string;
@@ -17,6 +18,7 @@ export function Drawer({
   open,
   onClose,
   title,
+  subtitle,
   children,
   footer,
   widthClassName = "max-w-md",
@@ -54,9 +56,14 @@ export function Drawer({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
-          <h2 id="drawer-title" className="text-lg font-extrabold text-brand-900">
-            {title}
-          </h2>
+          <div className="min-w-0">
+            <h2 id="drawer-title" className="text-lg font-extrabold text-brand-900">
+              {title}
+            </h2>
+            {subtitle ? (
+              <p className="mt-1 text-sm text-text-secondary">{subtitle}</p>
+            ) : null}
+          </div>
           <button
             type="button"
             onClick={onClose}

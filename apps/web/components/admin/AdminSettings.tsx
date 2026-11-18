@@ -9,6 +9,7 @@ import {
 import { FormButton } from "@/components/ui/FormButton";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { cn } from "@/lib/utils";
+import { Alert } from "@/components/ui/Alert";
 
 type NotifKey = keyof Pick<
   NotificationSettings,
@@ -248,9 +249,7 @@ export function AdminSettings() {
       </div>
 
       {error ? (
-        <p className="rounded-[10px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </p>
+        <Alert>{error}</Alert>
       ) : null}
       {message ? (
         <p className="rounded-[10px] border border-brand-100 bg-brand-100/40 px-4 py-3 text-sm text-brand-900">

@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { FormButton } from "@/components/ui/FormButton";
 import { Modal } from "@/components/ui/Modal";
+import { Alert } from "@/components/ui/Alert";
 
 type Tab = "all" | "pending" | "approved" | "rejected";
 
@@ -45,6 +46,7 @@ type QueueResponse = {
 
 type ApplicantMeta = {
   name: string | null;
+  email: string | null;
   passport: string | null;
   verificationId: string | null;
   verificationStatus: string | null;
@@ -163,7 +165,11 @@ function applicantDisplayName(
   userId: string,
   meta: ApplicantMeta | undefined,
 ): string {
-  return meta?.name?.trim() || `Абитуриент ${userId.slice(0, 8)}…`;
+  const name = meta?.name?.trim();
+  if (name && name.length >= 2) return name;
+  const email = meta?.email?.trim();
+  if (email) return email;
+  return `Абитуриент ${userId.slice(0, 8)}…`;
 }
 
 function selectedWord(n: number): string {
@@ -183,6 +189,7 @@ export function ModeratorCtApplications() {
   );
   const [subjectId, setSubjectId] = useState("");
   const [venueId, setVenueId] = useState("");
+  const [applicantQuery, setApplicantQuery] = useState("");
   const [subjects, setSubjects] = useState<CatalogSubject[]>([]);
   const [venues, setVenues] = useState<ExamVenue[]>([]);
   const [data, setData] = useState<QueueResponse | null>(null);
@@ -200,6 +207,15 @@ export function ModeratorCtApplications() {
   const [rejectReasonKey, setRejectReasonKey] = useState(REJECT_REASONS[0].value);
   const [rejectComment, setRejectComment] = useState("");
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [statusChangeApp, setStatusChangeApp] =
+    useState<ExamApplication | null>(null);
+  const [statusTarget, setStatusTarget] = useState<
+    "pending" | "approved" | "rejected"
+  >("pending");
+  const [statusRejectKey, setStatusRejectKey] = useState(
+    REJECT_REASONS[0].value,
+  );
+  const [statusRejectComment, setStatusRejectComment] = useState("");
 
   const subjectName = useCallback(
     (id: string) => subjects.find((s) => s.id === id)?.name || "Предмет",
@@ -246,8 +262,13 @@ export function ModeratorCtApplications() {
             item.profile.passportSeries && item.profile.passportNumber
               ? `${item.profile.passportSeries} ${item.profile.passportNumber}`
               : null;
+          const identityName = item.applicant?.fullName?.trim() || null;
+          const docName = item.profile.graduateName?.trim() || null;
           map[item.profile.userId] = {
-            name: item.profile.graduateName,
+            name:
+              identityName ||
+              (docName && docName.length >= 2 ? docName : null),
+            email: item.applicant?.email?.trim() || null,
             passport,
             verificationId: item.id,
             verificationStatus: item.status,
@@ -306,14 +327,42 @@ export function ModeratorCtApplications() {
   const items = data?.items || [];
   const counts = data?.counts;
 
-  const pageCount = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
-  const pageItems = items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const filteredItems = useMemo(() => {
+    const needle = applicantQuery.trim().toLowerCase();
+    if (!needle) return items;
+    return items.filter((row) => {
+      const meta = applicantByUser[row.userId];
+      const hay = [
+        meta?.name,
+        meta?.email,
+        meta?.passport,
+        row.userId,
+        row.passNumber,
+        applicantDisplayName(row.userId, meta),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(needle);
+    });
+  }, [items, applicantByUser, applicantQuery]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const pageItems = filteredItems.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE,
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [applicantQuery]);
 
   const sessionCard = useMemo(() => {
-    if (items.length === 0) return null;
-    const examIds = new Set(items.map((i) => i.examId));
+    if (filteredItems.length === 0) return null;
+    const examIds = new Set(filteredItems.map((i) => i.examId));
     if (examIds.size !== 1) return null;
-    const sample = items.find((i) => i.exam)?.exam;
+    const sample = filteredItems.find((i) => i.exam)?.exam;
     if (!sample) return null;
     const capacity = sample.capacity || 0;
     const taken = sample.seatsTaken || 0;
@@ -328,7 +377,7 @@ export function ModeratorCtApplications() {
       capacity,
       pct,
     };
-  }, [items, subjectName]);
+  }, [filteredItems, subjectName]);
 
   function isDataConfirmed(userId: string): boolean {
     return applicantByUser[userId]?.verificationStatus === "approved";
@@ -372,7 +421,7 @@ export function ModeratorCtApplications() {
 
   async function decide(
     id: string,
-    decision: "approved" | "rejected",
+    decision: "approved" | "rejected" | "pending",
     reason?: string,
   ) {
     setBusy(true);
@@ -392,6 +441,7 @@ export function ModeratorCtApplications() {
         return;
       }
       setRejectTarget(null);
+      setStatusChangeApp(null);
       setReviewApp(null);
       await load();
     } catch {
@@ -399,6 +449,27 @@ export function ModeratorCtApplications() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function openStatusChange(app: ExamApplication) {
+    const next =
+      app.status === "approved"
+        ? "rejected"
+        : app.status === "rejected"
+          ? "pending"
+          : "approved";
+    setStatusTarget(next);
+    setStatusRejectKey(REJECT_REASONS[0].value);
+    setStatusRejectComment("");
+    setStatusChangeApp(app);
+  }
+
+  function statusRejectReasonText() {
+    const base =
+      REJECT_REASONS.find((r) => r.value === statusRejectKey)?.label || "";
+    return statusRejectComment.trim()
+      ? `${base}: ${statusRejectComment.trim()}`
+      : base;
   }
 
   async function approveBatch() {
@@ -513,6 +584,13 @@ export function ModeratorCtApplications() {
           </button>
         ))}
         <div className="ml-auto flex flex-wrap gap-2">
+          <input
+            value={applicantQuery}
+            onChange={(e) => setApplicantQuery(e.target.value)}
+            placeholder="Поиск по абитуриенту"
+            aria-label="Поиск по абитуриенту"
+            className="min-w-[220px] rounded-[10px] border border-border bg-white px-3.5 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+          />
           <FilterSelect
             value={subjectId}
             onChange={(e) => setSubjectId(e.target.value)}
@@ -543,9 +621,7 @@ export function ModeratorCtApplications() {
       </div>
 
       {error ? (
-        <p className="rounded-[10px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </p>
+        <Alert>{error}</Alert>
       ) : null}
 
       {loading ? (
@@ -553,6 +629,10 @@ export function ModeratorCtApplications() {
       ) : items.length === 0 ? (
         <p className="rounded-[14px] border border-border bg-white p-6 text-sm text-text-muted">
           Заявок в этом статусе нет.
+        </p>
+      ) : filteredItems.length === 0 ? (
+        <p className="rounded-[14px] border border-border bg-white p-6 text-sm text-text-muted">
+          По запросу ничего не найдено.
         </p>
       ) : (
         <div className="overflow-hidden rounded-[14px] border border-border bg-white">
@@ -603,7 +683,9 @@ export function ModeratorCtApplications() {
                           {name}
                         </div>
                         <div className="text-xs text-text-muted">
-                          Заявка #{appDisplayId(row)}
+                          {meta?.email
+                            ? meta.email
+                            : `Заявка #${appDisplayId(row)}`}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-text-secondary">
@@ -660,13 +742,14 @@ export function ModeratorCtApplications() {
 
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
             <p className="text-xs text-text-muted">
-              Показано {(page - 1) * PAGE_SIZE + 1}–
-              {Math.min(page * PAGE_SIZE, items.length)} из {items.length}
+              Показано {(safePage - 1) * PAGE_SIZE + 1}–
+              {Math.min(safePage * PAGE_SIZE, filteredItems.length)} из{" "}
+              {filteredItems.length}
             </p>
             <div className="flex flex-wrap items-center gap-1">
               <button
                 type="button"
-                disabled={page <= 1}
+                disabled={safePage <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 className="rounded-[8px] border border-border px-2.5 py-1.5 text-xs font-bold text-brand-800 disabled:opacity-40"
               >
@@ -678,7 +761,7 @@ export function ModeratorCtApplications() {
                   return (
                     n === 1 ||
                     n === pageCount ||
-                    Math.abs(n - page) <= 1
+                    Math.abs(n - safePage) <= 1
                   );
                 })
                 .map((n, idx, arr) => {
@@ -694,7 +777,7 @@ export function ModeratorCtApplications() {
                         onClick={() => setPage(n)}
                         className={cn(
                           "min-w-8 rounded-[8px] border px-2.5 py-1.5 text-xs font-bold",
-                          page === n
+                          safePage === n
                             ? "border-brand-700 bg-brand-700 text-white"
                             : "border-border text-brand-800 hover:bg-[#f4f7f9]",
                         )}
@@ -706,7 +789,7 @@ export function ModeratorCtApplications() {
                 })}
               <button
                 type="button"
-                disabled={page >= pageCount}
+                disabled={safePage >= pageCount}
                 onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
                 className="rounded-[8px] border border-border px-2.5 py-1.5 text-xs font-bold text-brand-800 disabled:opacity-40"
               >
@@ -766,6 +849,31 @@ export function ModeratorCtApplications() {
                 }
               >
                 Одобрить заявку
+              </FormButton>
+            </>
+          ) : reviewApp &&
+            (reviewApp.status === "approved" ||
+              reviewApp.status === "rejected") ? (
+            <>
+              <FormButton
+                type="button"
+                variant="secondary"
+                className="w-auto px-4 py-2.5"
+                onClick={() => setReviewApp(null)}
+                disabled={busy}
+              >
+                Закрыть
+              </FormButton>
+              <FormButton
+                type="button"
+                className="w-auto px-4 py-2.5"
+                onClick={() => {
+                  if (!reviewApp) return;
+                  openStatusChange(reviewApp);
+                }}
+                disabled={busy}
+              >
+                Изменить статус
               </FormButton>
             </>
           ) : (
@@ -970,6 +1078,131 @@ export function ModeratorCtApplications() {
             placeholder="Дополнительный комментарий..."
           />
         </label>
+      </Modal>
+
+      <Modal
+        open={statusChangeApp !== null}
+        onClose={() => setStatusChangeApp(null)}
+        title="Изменить статус заявки на ЦТ"
+        subtitle={
+          statusChangeApp
+            ? `Заявка #${appDisplayId(statusChangeApp)} · сейчас: ${ctAppStatusLabel(statusChangeApp.status)}`
+            : undefined
+        }
+        size="sm"
+        footer={
+          <>
+            <FormButton
+              type="button"
+              variant="secondary"
+              className="w-auto px-4 py-2.5"
+              onClick={() => setStatusChangeApp(null)}
+              disabled={busy}
+            >
+              Отмена
+            </FormButton>
+            <FormButton
+              type="button"
+              className="w-auto px-4 py-2.5"
+              disabled={
+                busy ||
+                !statusChangeApp ||
+                statusTarget === statusChangeApp.status ||
+                (statusTarget === "approved" &&
+                  !isDataConfirmed(statusChangeApp.userId))
+              }
+              title={
+                statusChangeApp &&
+                statusTarget === "approved" &&
+                !isDataConfirmed(statusChangeApp.userId)
+                  ? "Одобрение доступно только при подтверждённых данных"
+                  : undefined
+              }
+              onClick={() => {
+                if (!statusChangeApp) return;
+                void decide(
+                  statusChangeApp.id,
+                  statusTarget,
+                  statusTarget === "rejected"
+                    ? statusRejectReasonText()
+                    : undefined,
+                );
+              }}
+            >
+              Сохранить статус
+            </FormButton>
+          </>
+        }
+      >
+        <label className="block space-y-1.5">
+          <span className="text-sm font-semibold text-brand-900">
+            Новый статус
+          </span>
+          <FilterSelect
+            value={statusTarget}
+            onChange={(e) =>
+              setStatusTarget(
+                e.target.value as "pending" | "approved" | "rejected",
+              )
+            }
+          >
+            {(
+              [
+                { value: "pending", label: "На рассмотрении" },
+                { value: "approved", label: "Одобрена" },
+                { value: "rejected", label: "Отклонена" },
+              ] as const
+            )
+              .filter((opt) => opt.value !== statusChangeApp?.status)
+              .map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+          </FilterSelect>
+        </label>
+        {statusTarget === "rejected" ? (
+          <>
+            <p className="mt-3 rounded-[10px] border border-[#ffe7ba] bg-[#fff7e6] px-3.5 py-2.5 text-sm text-[#ad6800]">
+              Если по заявке уже есть опубликованные баллы, они будут сняты с
+              публикации и перестанут учитываться в конкурсном балле. Черновик
+              баллов сохранится на случай повторного одобрения.
+            </p>
+            <label className="mt-3 block space-y-1.5">
+              <span className="text-sm font-semibold text-brand-900">
+                Причина отказа *
+              </span>
+              <FilterSelect
+                value={statusRejectKey}
+                onChange={(e) => setStatusRejectKey(e.target.value)}
+              >
+                {REJECT_REASONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </FilterSelect>
+            </label>
+            <label className="mt-3 block space-y-1.5">
+              <span className="text-sm font-semibold text-brand-900">
+                Дополнительный комментарий
+              </span>
+              <textarea
+                value={statusRejectComment}
+                onChange={(e) => setStatusRejectComment(e.target.value)}
+                rows={3}
+                className="w-full rounded-[10px] border border-border px-3.5 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                placeholder="Дополнительный комментарий..."
+              />
+            </label>
+          </>
+        ) : (
+          <p className="mt-3 text-sm text-text-secondary">
+            {statusTarget === "approved"
+              ? "Будет сформирован электронный пропуск (при наличии свободных мест). Строка для баллов у экзаменатора появится автоматически."
+              : "Заявка вернётся в очередь на рассмотрение. Пропуск будет аннулирован. Опубликованные баллы будут сняты с публикации (останутся черновиком)."}
+          </p>
+        )}
       </Modal>
 
       <Modal

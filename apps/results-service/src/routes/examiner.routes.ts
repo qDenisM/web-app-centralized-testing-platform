@@ -5,6 +5,7 @@ import { requireExaminer } from "../auth.js";
 import { config } from "../config.js";
 import { prisma } from "../db.js";
 import { publishResultPublished } from "../notify.js";
+import { assertCanPublish, ensureResultRow } from "../result-rows.js";
 import { resultJson } from "../serializers.js";
 
 export const examinerRoutes = Router();
@@ -107,22 +108,27 @@ examinerRoutes.post(
       };
 
       let created = 0;
+      const approvedKeys = new Set<string>();
       for (const app of payload.items || []) {
-        const existing = await prisma.ctResult.findUnique({
-          where: {
-            examId_userId: { examId: app.examId, userId: app.userId },
-          },
+        const item = app as {
+          examId: string;
+          userId: string;
+          exam?: { subjectId?: string; startsAt?: string };
+        };
+        approvedKeys.add(`${item.examId}:${item.userId}`);
+        const startsAt = item.exam?.startsAt
+          ? new Date(item.exam.startsAt)
+          : null;
+        const ensured = await ensureResultRow({
+          examId: item.examId,
+          userId: item.userId,
+          subjectId: item.exam?.subjectId,
+          campaignYear:
+            startsAt && !Number.isNaN(startsAt.getTime())
+              ? startsAt.getFullYear()
+              : undefined,
         });
-        if (existing) continue;
-        await prisma.ctResult.create({
-          data: {
-            examId: app.examId,
-            userId: app.userId,
-            status: "missing",
-            score: null,
-          },
-        });
-        created += 1;
+        if (ensured.created) created += 1;
       }
 
       const rows = await prisma.ctResult.findMany({
@@ -130,7 +136,12 @@ examinerRoutes.post(
         orderBy: { updatedAt: "desc" },
       });
 
-      res.status(200).json({ created, items: rows.map(resultJson) });
+      // Only rows for currently approved applications (re-approve restores them).
+      const visible = rows.filter((row) =>
+        approvedKeys.has(`${row.examId}:${row.userId}`),
+      );
+
+      res.status(200).json({ created, items: visible.map(resultJson) });
     } catch (err) {
       next(err);
     }
@@ -145,20 +156,49 @@ examinerRoutes.post(
     try {
       const examinerId = req.user?.sub;
       if (!examinerId) throw AppError.unauthorized();
+      const token = req.header("authorization")?.replace(/^Bearer\s+/i, "");
+      if (!token) throw AppError.unauthorized();
       const body = BatchPublishSchema.parse(req.body);
       const published = [];
 
       for (const id of body.ids) {
         const row = await prisma.ctResult.findUnique({ where: { id } });
         if (!row || row.score === null || row.status === "absent") continue;
-        const updated = await prisma.ctResult.update({
-          where: { id },
-          data: {
-            status: "published",
-            publishedAt: new Date(),
-            enteredBy: row.enteredBy || examinerId,
-          },
-        });
+        if (row.status === "published") {
+          published.push(resultJson(row));
+          continue;
+        }
+        try {
+          await assertApplicationApproved(token, row.examId, row.userId);
+        } catch {
+          continue;
+        }
+        const meta = await assertCanPublish(row);
+        let updated;
+        try {
+          updated = await prisma.ctResult.update({
+            where: { id },
+            data: {
+              status: "published",
+              publishedAt: new Date(),
+              enteredBy: row.enteredBy || examinerId,
+              subjectId: meta.subjectId,
+              campaignYear: meta.campaignYear,
+            },
+          });
+        } catch (err) {
+          if (
+            err &&
+            typeof err === "object" &&
+            "code" in err &&
+            (err as { code?: string }).code === "P2002"
+          ) {
+            throw AppError.conflict(
+              "Опубликованный результат по этому предмету за кампанию уже есть",
+            );
+          }
+          throw err;
+        }
         await publishResultPublished({
           userId: updated.userId,
           resultId: updated.id,
@@ -175,6 +215,23 @@ examinerRoutes.post(
   },
 );
 
+async function assertApplicationApproved(
+  token: string,
+  examId: string,
+  userId: string,
+) {
+  const path = `/examiner/applications?status=approved&examId=${encodeURIComponent(examId)}`;
+  const payload = (await examFetch(path, token)) as {
+    items?: Array<{ userId: string }>;
+  };
+  const ok = (payload.items || []).some((app) => app.userId === userId);
+  if (!ok) {
+    throw AppError.conflict(
+      "Заявка на этот экзамен не одобрена — внесение баллов недоступно",
+    );
+  }
+}
+
 examinerRoutes.patch(
   "/examiner/results/:id",
   ...requireExaminer,
@@ -188,8 +245,38 @@ examinerRoutes.patch(
 
       const row = await prisma.ctResult.findUnique({ where: { id } });
       if (!row) throw AppError.notFound("Result not found");
+
+      const token = req.header("authorization")?.replace(/^Bearer\s+/i, "");
+      if (!token) throw AppError.unauthorized();
+      await assertApplicationApproved(token, row.examId, row.userId);
+
+      // Published score correction: keep published, notify applicant again.
       if (row.status === "published") {
-        throw AppError.conflict("Опубликованный результат нельзя менять так");
+        if (body.score === undefined || body.score === null) {
+          throw AppError.badRequest(
+            "Для опубликованного результата укажите новый балл (0–100)",
+          );
+        }
+        if (body.status) {
+          throw AppError.badRequest(
+            "Статус опубликованного результата менять нельзя",
+          );
+        }
+        const updated = await prisma.ctResult.update({
+          where: { id },
+          data: {
+            score: body.score,
+            enteredBy: examinerId,
+          },
+        });
+        await publishResultPublished({
+          userId: updated.userId,
+          resultId: updated.id,
+          examId: updated.examId,
+          score: updated.score!,
+        });
+        res.status(200).json(resultJson(updated));
+        return;
       }
 
       let status = body.status ?? row.status;
@@ -230,21 +317,41 @@ examinerRoutes.post(
 
       const row = await prisma.ctResult.findUnique({ where: { id } });
       if (!row) throw AppError.notFound("Result not found");
-      if (row.status === "absent") {
-        throw AppError.badRequest("Неявку публиковать не нужно");
-      }
-      if (row.score === null || row.score === undefined) {
-        throw AppError.badRequest("Сначала укажите балл");
+      if (row.status === "published") {
+        res.status(200).json(resultJson(row));
+        return;
       }
 
-      const updated = await prisma.ctResult.update({
-        where: { id },
-        data: {
-          status: "published",
-          publishedAt: new Date(),
-          enteredBy: row.enteredBy || examinerId,
-        },
-      });
+      const token = req.header("authorization")?.replace(/^Bearer\s+/i, "");
+      if (!token) throw AppError.unauthorized();
+      await assertApplicationApproved(token, row.examId, row.userId);
+      const meta = await assertCanPublish(row);
+
+      let updated;
+      try {
+        updated = await prisma.ctResult.update({
+          where: { id },
+          data: {
+            status: "published",
+            publishedAt: new Date(),
+            enteredBy: row.enteredBy || examinerId,
+            subjectId: meta.subjectId,
+            campaignYear: meta.campaignYear,
+          },
+        });
+      } catch (err) {
+        if (
+          err &&
+          typeof err === "object" &&
+          "code" in err &&
+          (err as { code?: string }).code === "P2002"
+        ) {
+          throw AppError.conflict(
+            "Опубликованный результат по этому предмету за кампанию уже есть",
+          );
+        }
+        throw err;
+      }
 
       await publishResultPublished({
         userId: updated.userId,

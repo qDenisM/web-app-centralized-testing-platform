@@ -5,6 +5,7 @@ import {
 } from "@abiturent/service-kit";
 import { buildApp } from "./app.js";
 import { config } from "./config.js";
+import { startResultsConsumers } from "./consumer.js";
 import { prisma } from "./db.js";
 import { setRabbitClient } from "./notify.js";
 
@@ -15,9 +16,10 @@ const server = app.listen(config.port, () => {
   logger.info({ port: config.port }, "results-service listening");
 
   void connectRabbit(config.rabbitmqUrl)
-    .then((client) => {
+    .then(async (client) => {
       rabbit = client;
       setRabbitClient(client);
+      await startResultsConsumers(client);
       logger.info("rabbitmq connected");
     })
     .catch((err: unknown) => {

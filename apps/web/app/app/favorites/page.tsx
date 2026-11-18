@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { type ChanceResult, type Favorite } from "@/lib/chances";
-import { catalogChanceLabel } from "@/lib/chances-display";
+import { formatChanceBadge } from "@/lib/chances-display";
 import type { CatalogSpecialty } from "@/lib/catalog";
 import { cn } from "@/lib/utils";
+import { Alert } from "@/components/ui/Alert";
 
 export default function FavoritesPage() {
   const [favorites, setFavorites] = useState<Favorite[]>([]);
@@ -97,9 +98,7 @@ export default function FavoritesPage() {
 
       {loading ? <p className="text-sm text-text-muted">Загрузка…</p> : null}
       {error ? (
-        <p className="rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-          {error}
-        </p>
+        <Alert compact>{error}</Alert>
       ) : null}
 
       {!loading && !error && favorites.length === 0 ? (
@@ -141,13 +140,7 @@ export default function FavoritesPage() {
                       !chance && "text-text-muted",
                     )}
                   >
-                    {chance
-                      ? `${catalogChanceLabel(chance.status)}${
-                          chance.probability != null
-                            ? ` · ${Math.round(chance.probability)}%`
-                            : ""
-                        }`
-                      : "шанс не рассчитан"}
+                    {chance ? formatChanceBadge(chance) : "шанс не рассчитан"}
                   </div>
                 </div>
                 <div className="flex items-center gap-3">

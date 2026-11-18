@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { FormButton } from "@/components/ui/FormButton";
+import { Alert } from "@/components/ui/Alert";
 
 type ConfirmDialogProps = {
   open: boolean;
@@ -61,9 +62,7 @@ export function ConfirmDialog({
       <div className="space-y-3 text-sm leading-relaxed text-text-secondary">
         <div>{children}</div>
         {error ? (
-          <p className="rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 font-semibold text-red-700">
-            {error}
-          </p>
+          <Alert compact className="font-semibold">{error}</Alert>
         ) : null}
       </div>
     </Modal>

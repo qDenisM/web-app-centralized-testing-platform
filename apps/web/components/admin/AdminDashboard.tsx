@@ -10,6 +10,7 @@ import type {
 } from "@/lib/admin";
 import { roleLabel } from "@/lib/admin";
 import { cn } from "@/lib/utils";
+import { Alert } from "@/components/ui/Alert";
 
 type StatsResponse = {
   identity: IdentityAdminStats;
@@ -245,9 +246,7 @@ export function AdminDashboard() {
       </div>
 
       {error ? (
-        <p className="rounded-[10px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </p>
+        <Alert>{error}</Alert>
       ) : null}
 
       {loading ? (

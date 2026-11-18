@@ -18,6 +18,7 @@ const EnvSchema = z.object({
   RABBITMQ_URL: z
     .string()
     .default("amqp://abiturent:abiturent@localhost:5672"),
+  INTERNAL_AUDIT_TOKEN: z.string().min(1).default("dev-audit-token"),
 });
 
 const parsed = EnvSchema.parse(process.env);
@@ -32,4 +33,5 @@ export const config = {
   jwtIssuer: parsed.JWT_ISSUER,
   jwtAudience: parsed.JWT_AUDIENCE,
   rabbitmqUrl: parsed.RABBITMQ_URL,
+  internalToken: parsed.INTERNAL_AUDIT_TOKEN,
 };

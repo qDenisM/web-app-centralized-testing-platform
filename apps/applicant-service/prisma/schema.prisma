@@ -9,17 +9,18 @@ datasource db {
 }
 
 model ApplicantProfile {
-  id              String    @id @default(uuid()) @db.Uuid
-  userId          String    @unique @map("user_id") @db.Uuid
-  birthDate       DateTime? @map("birth_date") @db.Date
-  passportSeries  String?   @map("passport_series")
-  passportNumber  String?   @map("passport_number")
-  storageKey      String?   @map("storage_key")
-  attestatAverage Float?    @map("attestat_average")
-  schoolName      String?   @map("school_name")
-  graduateName    String?   @map("graduate_name")
-  attestatIssuedOn DateTime? @map("attestat_issued_on") @db.Date
-  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  id                  String    @id @default(uuid()) @db.Uuid
+  userId              String    @unique @map("user_id") @db.Uuid
+  birthDate           DateTime? @map("birth_date") @db.Date
+  passportSeries      String?   @map("passport_series")
+  passportNumber      String?   @map("passport_number")
+  storageKey          String?   @map("storage_key")
+  attestatAverage     Float?    @map("attestat_average")
+  schoolName          String?   @map("school_name")
+  graduateName        String?   @map("graduate_name")
+  attestatIssuedOn    DateTime? @map("attestat_issued_on") @db.Date
+  selectedCtResultIds String[]  @default([]) @map("selected_ct_result_ids")
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
   verifications Verification[]
 

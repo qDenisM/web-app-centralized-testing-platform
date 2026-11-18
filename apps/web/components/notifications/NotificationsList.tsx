@@ -1,64 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import {
-  formatNotificationTime,
-  type AppNotification,
-} from "@/lib/notification";
+import { formatNotificationTime } from "@/lib/notification";
+import { useNotifications } from "@/lib/use-notifications";
 import { cn } from "@/lib/utils";
+import { Alert } from "@/components/ui/Alert";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 export function NotificationsList() {
-  const [items, setItems] = useState<AppNotification[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/notifications/me");
-      const json = (await res.json().catch(() => ({}))) as
-        | AppNotification[]
-        | { error?: string };
-      if (!res.ok || !Array.isArray(json)) {
-        setError(
-          !Array.isArray(json) && json.error
-            ? json.error
-            : "Не удалось загрузить уведомления",
-        );
-        return;
-      }
-      setItems(json);
-    } catch {
-      setError("Сеть недоступна. Проверьте notification-service.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  async function markRead(id: string) {
-    const res = await fetch(`/api/notifications/${id}/read`, { method: "POST" });
-    if (!res.ok) return;
-    setItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, isRead: true } : item)),
-    );
-  }
-
-  async function markAllRead() {
-    const unreadIds = items.filter((item) => !item.isRead).map((item) => item.id);
-    await Promise.all(
-      unreadIds.map((id) =>
-        fetch(`/api/notifications/${id}/read`, { method: "POST" }),
-      ),
-    );
-    setItems((prev) => prev.map((item) => ({ ...item, isRead: true })));
-  }
-
-  const unreadCount = items.filter((item) => !item.isRead).length;
+  const { items, loading, error, markRead, markAllRead, unreadCount } =
+    useNotifications();
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-5">
@@ -82,16 +32,16 @@ export function NotificationsList() {
         ) : null}
       </div>
 
-      {loading ? (
+      {loading && items.length === 0 ? (
         <p className="text-sm text-text-muted">Загрузка…</p>
-      ) : error ? (
-        <p className="rounded-[12px] border border-[#c94343]/30 bg-[#fdecec] px-4 py-3 text-sm text-[#8a2a2a]">
+      ) : error && items.length === 0 ? (
+        <Alert className="border-[#c94343]/30 bg-[#fdecec] text-[#8a2a2a]">
           {error}
-        </p>
+        </Alert>
       ) : items.length === 0 ? (
-        <div className="flex min-h-[280px] flex-1 items-center justify-center rounded-[14px] border border-border bg-white p-6 text-sm text-text-secondary shadow-[var(--shadow-soft)]">
+        <EmptyState className="flex min-h-[280px] flex-1 items-center justify-center border-solid p-6 text-text-secondary">
           Пока нет уведомлений.
-        </div>
+        </EmptyState>
       ) : (
         <ul className="min-h-0 flex-1 space-y-3 overflow-y-auto">
           {items.map((item) => (

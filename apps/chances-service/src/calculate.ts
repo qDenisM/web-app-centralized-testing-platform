@@ -18,16 +18,48 @@ export type CatalogSpecialty = {
 };
 
 export type CtResultRow = {
+  id?: string;
   examId: string;
   score: number | null;
   status: string;
+  subjectId?: string | null;
 };
+
+export const MAX_CT_RESULTS_FOR_SCORE = 3;
+
+/** Apply applicant selection / default top-N before mapping by subject. */
+export function filterResultsForChances(
+  results: CtResultRow[],
+  selectedIds: string[] | null | undefined,
+  max = MAX_CT_RESULTS_FOR_SCORE,
+): CtResultRow[] {
+  const published = results.filter(
+    (row) => row.status === "published" && row.score != null,
+  );
+  if (selectedIds && selectedIds.length > 0) {
+    const set = new Set(selectedIds);
+    return published.filter((row) => row.id && set.has(row.id)).slice(0, max);
+  }
+  return [...published]
+    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+    .slice(0, max);
+}
 
 export type CalcInput = {
   specialty: CatalogSpecialty;
   attestatAverage: number | null;
   scoresBySubject: Map<string, number>;
 };
+
+/** Average counts in chances only after moderator approval. */
+export function contestAttestatAverage(profile: {
+  attestatAverage: number | null;
+  verification?: { status: string } | null;
+}): number | null {
+  const status = profile.verification?.status;
+  if (status !== "approved" && status !== "verified") return null;
+  return profile.attestatAverage;
+}
 
 export type CalcOutput = {
   status: ChanceStatus;

@@ -8,6 +8,8 @@ export type CtResult = {
   id: string;
   examId: string;
   userId: string;
+  subjectId?: string | null;
+  campaignYear?: number | null;
   score: number | null;
   status: CtResultStatus;
   enteredBy: string | null;

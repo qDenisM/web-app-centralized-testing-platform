@@ -22,6 +22,13 @@ export type ExamSession = {
   venue?: ExamVenue;
 };
 
+export type ExamApplicantBrief = {
+  fullName: string | null;
+  email: string | null;
+  graduateName: string | null;
+  attestatAverage: number | null;
+};
+
 export type ExamApplication = {
   id: string;
   examId: string;
@@ -33,6 +40,8 @@ export type ExamApplication = {
   rejectReason: string | null;
   createdAt: string;
   exam?: ExamSession;
+  /** Present on examiner applications responses (identity + profile enrichment). */
+  applicant?: ExamApplicantBrief;
 };
 
 export type ExamWaitlistEntry = {
@@ -70,4 +79,29 @@ export function formatExamWhen(iso: string): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+/** Mockup style: «12 июня 2026, 10:00» */
+export function formatExamWhenShort(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const day = date.toLocaleDateString("ru-RU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  const time = date.toLocaleTimeString("ru-RU", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return `${day}, ${time}`;
+}
+
+export function formatExamVenue(exam: Pick<ExamSession, "venue">): string {
+  const name = exam.venue?.name?.trim();
+  const address = exam.venue?.address?.trim();
+  if (name && address && !name.includes(address)) {
+    return `${name}, ${address}`;
+  }
+  return name || address || "Пункт не указан";
 }

@@ -5,6 +5,8 @@ export function resultJson(row: CtResult) {
     id: row.id,
     examId: row.examId,
     userId: row.userId,
+    subjectId: row.subjectId,
+    campaignYear: row.campaignYear,
     score: row.score,
     status: row.status,
     enteredBy: row.enteredBy,

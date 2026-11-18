@@ -21,8 +21,10 @@ export function ModeratorShell({ children }: ModeratorShellProps) {
       navItems={navItems}
       roleName="Модератор"
       homeHref="/"
+      notificationsHref="/moderator/notifications"
       profileLinks={[
         { href: "/moderator", label: "Обзор очереди", icon: "profile" },
+        { href: "/moderator/notifications", label: "Уведомления" },
         { href: "/moderator/settings", label: "Настройки", icon: "settings" },
       ]}
       headerBadge={<ActiveCampaignBadge />}
@@ -42,6 +44,7 @@ export function ModeratorShell({ children }: ModeratorShellProps) {
           { href: "/moderator/docs", label: "Проверка данных" },
           { href: "/moderator/applications", label: "Заявки на ЦТ" },
           { href: "/moderator/history", label: "История решений" },
+          { href: "/moderator/notifications", label: "Уведомления" },
         ],
         ctaTitle: "Очередь",
         ctaText: "Перейти к проверке персональных данных.",

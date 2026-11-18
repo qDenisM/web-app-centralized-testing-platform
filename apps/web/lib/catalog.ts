@@ -78,9 +78,12 @@ export function latestPassingScore(
   return [...scores].sort((a, b) => b.year - a.year)[0] ?? null;
 }
 
+/** Public catalog changes rarely — short ISR beats blanket no-store. */
+const CATALOG_REVALIDATE_SECONDS = 60;
+
 export async function fetchCatalogSpecialties(): Promise<CatalogSpecialty[]> {
   const res = await fetch(`${getCatalogUrl()}/specialties`, {
-    cache: "no-store",
+    next: { revalidate: CATALOG_REVALIDATE_SECONDS },
   });
   if (!res.ok) {
     throw new Error("Не удалось загрузить специальности");
@@ -90,7 +93,7 @@ export async function fetchCatalogSpecialties(): Promise<CatalogSpecialty[]> {
 
 export async function fetchCatalogSubjects(): Promise<CatalogSubject[]> {
   const res = await fetch(`${getCatalogUrl()}/subjects`, {
-    cache: "no-store",
+    next: { revalidate: CATALOG_REVALIDATE_SECONDS },
   });
   if (!res.ok) {
     throw new Error("Не удалось загрузить предметы");

@@ -3,6 +3,7 @@ import { AppError } from "@abiturent/service-kit";
 import { reportAudit } from "../audit.js";
 import { requireApplicant, requireModerator } from "../auth.js";
 import { prisma } from "../db.js";
+import { publishApplicationSubmitted } from "../notify.js";
 import { releaseSeatAndMaybePromote } from "../seats.js";
 import { applicationJson, waitlistJson } from "../serializers.js";
 import { createPassDownloadUrl } from "../storage.js";
@@ -106,6 +107,14 @@ applicationsRoutes.post(
           examId: result.application.examId,
         },
       });
+
+      if (result.promoted) {
+        await publishApplicationSubmitted({
+          userId: result.promoted.userId,
+          applicationId: result.promoted.id,
+          examId: result.promoted.examId,
+        });
+      }
 
       res.status(200).json({
         application: applicationJson(result.application),

@@ -2,21 +2,17 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import {
+  clearShellSessionCache,
+  useShellMe,
+} from "@/lib/shell-data";
 import { cn } from "@/lib/utils";
 
 export type ProfileMenuLink = {
   href: string;
   label: string;
   icon?: "profile" | "favorites" | "settings" | "certificate";
-};
-
-type MeUser = {
-  id: string;
-  email: string;
-  fullName: string;
-  phone: string | null;
-  role: string;
 };
 
 type ProfileMenuProps = {
@@ -90,34 +86,8 @@ export function ProfileMenu({ roleName, links }: ProfileMenuProps) {
   const router = useRouter();
   const rootRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
-  const [user, setUser] = useState<MeUser | null>(null);
+  const { user } = useShellMe();
   const [loggingOut, setLoggingOut] = useState(false);
-
-  const load = useCallback(async () => {
-    try {
-      const res = await fetch("/api/users/me");
-      const data = (await res.json().catch(() => null)) as
-        | (MeUser & { error?: string })
-        | null;
-      if (!res.ok || !data || !data.id || !data.fullName) {
-        setUser(null);
-        return;
-      }
-      setUser({
-        id: data.id,
-        email: data.email,
-        fullName: data.fullName,
-        phone: data.phone ?? null,
-        role: data.role,
-      });
-    } catch {
-      setUser(null);
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
 
   useEffect(() => {
     if (!open) return;
@@ -132,6 +102,7 @@ export function ProfileMenu({ roleName, links }: ProfileMenuProps) {
     setLoggingOut(true);
     try {
       await fetch("/api/auth/logout", { method: "POST" });
+      clearShellSessionCache();
       router.replace("/login");
       router.refresh();
     } finally {

@@ -1,43 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import type { SystemSettings } from "@/lib/system-settings";
+import { useSystemSettingsCached } from "@/lib/shell-data";
 
-export function useSystemSettings() {
-  const [system, setSystem] = useState<SystemSettings | null>(null);
-
-  const load = useCallback(async () => {
-    try {
-      const res = await fetch("/api/system-settings", { cache: "no-store" });
-      if (!res.ok) return;
-      setSystem((await res.json()) as SystemSettings);
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-    function onRefresh() {
-      void load();
-    }
-    window.addEventListener("focus", onRefresh);
-    window.addEventListener("abiturent:system-settings-changed", onRefresh);
-    return () => {
-      window.removeEventListener("focus", onRefresh);
-      window.removeEventListener("abiturent:system-settings-changed", onRefresh);
-    };
-  }, [load]);
-
-  return system;
-}
+export { useSystemSettingsCached as useSystemSettings } from "@/lib/shell-data";
 
 export function MaintenanceBanner({
   audience = "applicant",
 }: {
   audience?: "applicant" | "admin";
 }) {
-  const system = useSystemSettings();
+  const system = useSystemSettingsCached();
   if (!system?.maintenanceMode) return null;
 
   return (

@@ -34,14 +34,20 @@ model NotificationSettings {
   @@map("notification_settings")
 }
 
-/// Per-user preferences (moderator cabinet: notification toggles + work defaults).
-/// Delivery of moderator in-app events should call isUserPrefEnabled before create.
+/// Per-user preferences (moderator / examiner cabinets: notification toggles + work defaults).
+/// Delivery of role in-app events should call isUserPrefEnabled / isExaminerPrefEnabled before create.
 model NotificationPreferences {
   userId            String   @id @map("user_id") @db.Uuid
   allEnabled        Boolean  @default(true) @map("all_enabled")
   verificationQueue Boolean  @default(true) @map("verification_queue")
   ctApplications    Boolean  @default(true) @map("ct_applications")
   decisions         Boolean  @default(true)
+  /// Examiner: confirmations / events around publishing CT results.
+  resultsPublish    Boolean  @default(true) @map("results_publish")
+  /// Examiner: import job completion / errors.
+  resultsImport     Boolean  @default(true) @map("results_import")
+  /// Examiner: new approved applicants / exam assignments.
+  examAssignments   Boolean  @default(true) @map("exam_assignments")
   /// overview | docs | applications | history
   defaultQueueTab   String   @default("overview") @map("default_queue_tab")
   updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)

@@ -13,6 +13,7 @@ import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import { notifyCampaignChanged } from "@/lib/campaign-events";
+import { Alert } from "@/components/ui/Alert";
 
 type StageForm = {
   name: string;
@@ -467,9 +468,7 @@ export function AdminCampaign() {
       </div>
 
       {error ? (
-        <p className="rounded-[10px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </p>
+        <Alert>{error}</Alert>
       ) : null}
 
       {loading ? (
@@ -717,9 +716,7 @@ export function AdminCampaign() {
             onChange={(e) => setYear(e.target.value)}
           />
           {modalError && createOpen ? (
-            <p className="rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
-              {modalError}
-            </p>
+            <Alert compact className="font-semibold">{modalError}</Alert>
           ) : null}
         </div>
       </Modal>
@@ -848,9 +845,7 @@ export function AdminCampaign() {
             </span>
           </label>
           {modalError ? (
-            <p className="rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
-              {modalError}
-            </p>
+            <Alert compact className="font-semibold">{modalError}</Alert>
           ) : null}
         </div>
       </Modal>

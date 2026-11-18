@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/Input";
 import { FormButton } from "@/components/ui/FormButton";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { Modal } from "@/components/ui/Modal";
+import { Alert } from "@/components/ui/Alert";
 
 type SubjectStatus = "active" | "hidden";
 
@@ -174,9 +175,7 @@ export function AdminSubjects() {
       </div>
 
       {error ? (
-        <p className="rounded-[10px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </p>
+        <Alert>{error}</Alert>
       ) : null}
 
       <SubjectTable

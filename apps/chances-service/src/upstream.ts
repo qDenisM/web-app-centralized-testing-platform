@@ -2,8 +2,10 @@ import { AppError } from "@abiturent/service-kit";
 import { config } from "./config.js";
 import type { CatalogSpecialty, CtResultRow } from "./calculate.js";
 
-type ApplicantProfile = {
+export type ApplicantProfileUpstream = {
   attestatAverage: number | null;
+  verification?: { status: string } | null;
+  selectedCtResultIds?: string[];
 };
 
 type ExamRow = {
@@ -35,7 +37,7 @@ export async function fetchCatalogSpecialties(): Promise<CatalogSpecialty[]> {
 
 export async function fetchApplicantProfile(
   authorization: string,
-): Promise<ApplicantProfile> {
+): Promise<ApplicantProfileUpstream> {
   const res = await fetch(`${config.applicantUrl}/profile/me`, {
     headers: {
       Accept: "application/json",
@@ -48,7 +50,7 @@ export async function fetchApplicantProfile(
   if (!res.ok) {
     throw new AppError(502, "INTERNAL_ERROR", "applicant-service недоступен");
   }
-  return readJson<ApplicantProfile>(res);
+  return readJson<ApplicantProfileUpstream>(res);
 }
 
 export async function fetchPublishedResults(

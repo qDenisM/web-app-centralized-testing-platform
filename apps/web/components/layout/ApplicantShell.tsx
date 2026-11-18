@@ -8,6 +8,12 @@ import { RoleShell } from "@/components/layout/RoleShell";
 const navItems = [
   { href: "/app", label: "Главная", exact: true, icon: "home" as const },
   { href: "/app/ct", label: "Мои ЦТ", icon: "ct" as const },
+  {
+    href: "/app/certificate",
+    label: "Аттестат",
+    exact: true,
+    icon: "certificate" as const,
+  },
   { href: "/app/universities", label: "Университеты", icon: "universities" as const },
 ];
 
@@ -21,6 +27,7 @@ export function ApplicantShell({ children }: ApplicantShellProps) {
       navItems={navItems}
       roleName="Абитуриент"
       homeHref="/"
+      prefetchScore
       headerBadge={<CompetitiveScoreBadge />}
       profileLinks={[
         {
@@ -29,8 +36,8 @@ export function ApplicantShell({ children }: ApplicantShellProps) {
           icon: "favorites",
         },
         {
-          href: "/app/certificate",
-          label: "Заявка на аттестат",
+          href: "/app/certificate/history",
+          label: "Заявки на аттестат",
           icon: "certificate",
         },
         {
@@ -44,6 +51,7 @@ export function ApplicantShell({ children }: ApplicantShellProps) {
         roleLinks: [
           { href: "/app", label: "Сводка" },
           { href: "/app/ct", label: "Мои ЦТ" },
+          { href: "/app/certificate", label: "Аттестат" },
           { href: "/app/universities", label: "Университеты" },
           { href: "/app/profile", label: "Настройки" },
           { href: "/app/notifications", label: "Уведомления" },
