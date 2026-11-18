@@ -15,7 +15,11 @@
     "build:web": "npm run build -w web",
     "infra:up": "docker compose -f infra/docker-compose.yml up -d",
     "infra:down": "docker compose -f infra/docker-compose.yml down",
-    "infra:logs": "docker compose -f infra/docker-compose.yml logs -f"
+    "infra:logs": "docker compose -f infra/docker-compose.yml logs -f",
+    "docker:up": "bash scripts/docker-up.sh",
+    "docker:down": "docker compose -f infra/docker-compose.yml -f infra/docker-compose.apps.yml down",
+    "docker:logs": "docker compose -f infra/docker-compose.yml -f infra/docker-compose.apps.yml logs -f",
+    "docker:ps": "docker compose -f infra/docker-compose.yml -f infra/docker-compose.apps.yml ps"
   },
   "engines": {
     "node": ">=20"

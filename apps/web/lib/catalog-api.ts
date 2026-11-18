@@ -56,14 +56,11 @@ export async function catalogFetch<T>(
   return { ok: true, status: res.status, data: parsed as T };
 }
 
-/** Subjects / specialties / institutions — safe to cache briefly. */
-const PUBLIC_CATALOG_REVALIDATE_SECONDS = 60;
-
 export async function catalogPublicGet<T>(path: string): Promise<
   { ok: true; data: T } | { ok: false; error: string }
 > {
   const res = await fetch(`${getCatalogUrl()}${path}`, {
-    next: { revalidate: PUBLIC_CATALOG_REVALIDATE_SECONDS },
+    cache: "no-store",
     headers: { Accept: "application/json" },
   });
 

@@ -1,0 +1,337 @@
+# Application containers (Node microservices + web + ai).
+# Use together with infra:
+#   docker compose -f infra/docker-compose.yml -f infra/docker-compose.apps.yml up -d --build
+# Or: npm run docker:up
+
+name: abiturent
+
+x-node-service: &node-service
+  restart: unless-stopped
+  networks:
+    - abiturent
+  depends_on:
+    postgres:
+      condition: service_healthy
+    rabbitmq:
+      condition: service_healthy
+
+services:
+  identity:
+    <<: *node-service
+    container_name: abiturent-identity
+    build:
+      context: ..
+      dockerfile: infra/docker/Dockerfile.node-service
+      args:
+        SERVICE_DIR: identity-service
+        WORKSPACE: "@abiturent/identity-service"
+        PORT: "3001"
+    environment:
+      PORT: "3001"
+      NODE_ENV: production
+      LOG_LEVEL: info
+      DATABASE_URL: postgresql://abiturent:abiturent@postgres:5432/identity
+      JWT_PRIVATE_KEY_PATH: ./keys/private.pem
+      JWT_PUBLIC_KEY_PATH: ./keys/public.pem
+      JWT_ISSUER: abiturent-identity
+      JWT_AUDIENCE: abiturent
+      INTERNAL_AUDIT_TOKEN: dev-audit-token
+    volumes:
+      - ../apps/identity-service/keys:/app/apps/identity-service/keys:ro
+    ports:
+      - "3001:3001"
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.identity.rule=Host(`identity.localhost`)
+      - traefik.http.services.identity.loadbalancer.server.port=3001
+
+  catalog:
+    <<: *node-service
+    container_name: abiturent-catalog
+    build:
+      context: ..
+      dockerfile: infra/docker/Dockerfile.node-service
+      args:
+        SERVICE_DIR: catalog-service
+        WORKSPACE: "@abiturent/catalog-service"
+        PORT: "3002"
+    environment:
+      PORT: "3002"
+      NODE_ENV: production
+      LOG_LEVEL: info
+      DATABASE_URL: postgresql://abiturent:abiturent@postgres:5432/catalog
+      JWKS_URL: http://identity:3001/.well-known/jwks.json
+      JWT_ISSUER: abiturent-identity
+      JWT_AUDIENCE: abiturent
+    ports:
+      - "3002:3002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      identity:
+        condition: service_started
+
+  applicant:
+    <<: *node-service
+    container_name: abiturent-applicant
+    build:
+      context: ..
+      dockerfile: infra/docker/Dockerfile.node-service
+      args:
+        SERVICE_DIR: applicant-service
+        WORKSPACE: "@abiturent/applicant-service"
+        PORT: "3003"
+    environment:
+      PORT: "3003"
+      NODE_ENV: production
+      LOG_LEVEL: info
+      DATABASE_URL: postgresql://abiturent:abiturent@postgres:5432/applicant
+      JWKS_URL: http://identity:3001/.well-known/jwks.json
+      JWT_ISSUER: abiturent-identity
+      JWT_AUDIENCE: abiturent
+      # Browser-facing presigned URLs via host gateway (Docker Desktop / Compose)
+      MINIO_ENDPOINT: http://host.docker.internal:9000
+      MINIO_REGION: us-east-1
+      MINIO_ACCESS_KEY: abiturent
+      MINIO_SECRET_KEY: abiturent_secret
+      MINIO_BUCKET_DOCUMENTS: documents
+      MINIO_FORCE_PATH_STYLE: "true"
+      UPLOAD_URL_TTL_SEC: "600"
+      DOWNLOAD_URL_TTL_SEC: "600"
+      AI_URL: http://ai:3010
+      RABBITMQ_URL: amqp://abiturent:abiturent@rabbitmq:5672
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "3003:3003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      identity:
+        condition: service_started
+      ai:
+        condition: service_started
+
+  exam:
+    <<: *node-service
+    container_name: abiturent-exam
+    build:
+      context: ..
+      dockerfile: infra/docker/Dockerfile.node-service
+      args:
+        SERVICE_DIR: exam-service
+        WORKSPACE: "@abiturent/exam-service"
+        PORT: "3004"
+    environment:
+      PORT: "3004"
+      NODE_ENV: production
+      LOG_LEVEL: info
+      DATABASE_URL: postgresql://abiturent:abiturent@postgres:5432/exam
+      CATALOG_DATABASE_URL: postgresql://abiturent:abiturent@postgres:5432/catalog
+      APPLICANT_DATABASE_URL: postgresql://abiturent:abiturent@postgres:5432/applicant
+      JWKS_URL: http://identity:3001/.well-known/jwks.json
+      JWT_ISSUER: abiturent-identity
+      JWT_AUDIENCE: abiturent
+      MINIO_ENDPOINT: http://host.docker.internal:9000
+      MINIO_REGION: us-east-1
+      MINIO_ACCESS_KEY: abiturent
+      MINIO_SECRET_KEY: abiturent_secret
+      MINIO_BUCKET_PASSES: passes
+      MINIO_FORCE_PATH_STYLE: "true"
+      DOWNLOAD_URL_TTL_SEC: "600"
+      RABBITMQ_URL: amqp://abiturent:abiturent@rabbitmq:5672
+      IDENTITY_URL: http://identity:3001
+      RESULTS_URL: http://results:3005
+      INTERNAL_AUDIT_TOKEN: dev-audit-token
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "3004:3004"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      identity:
+        condition: service_started
+
+  results:
+    <<: *node-service
+    container_name: abiturent-results
+    build:
+      context: ..
+      dockerfile: infra/docker/Dockerfile.node-service
+      args:
+        SERVICE_DIR: results-service
+        WORKSPACE: "@abiturent/results-service"
+        PORT: "3005"
+    environment:
+      PORT: "3005"
+      NODE_ENV: production
+      LOG_LEVEL: info
+      DATABASE_URL: postgresql://abiturent:abiturent@postgres:5432/results
+      EXAM_URL: http://exam:3004
+      JWKS_URL: http://identity:3001/.well-known/jwks.json
+      JWT_ISSUER: abiturent-identity
+      JWT_AUDIENCE: abiturent
+      RABBITMQ_URL: amqp://abiturent:abiturent@rabbitmq:5672
+      INTERNAL_AUDIT_TOKEN: dev-audit-token
+    ports:
+      - "3005:3005"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      identity:
+        condition: service_started
+
+  chances:
+    <<: *node-service
+    container_name: abiturent-chances
+    build:
+      context: ..
+      dockerfile: infra/docker/Dockerfile.node-service
+      args:
+        SERVICE_DIR: chances-service
+        WORKSPACE: "@abiturent/chances-service"
+        PORT: "3006"
+    environment:
+      PORT: "3006"
+      NODE_ENV: production
+      LOG_LEVEL: info
+      DATABASE_URL: postgresql://abiturent:abiturent@postgres:5432/chances
+      JWKS_URL: http://identity:3001/.well-known/jwks.json
+      JWT_ISSUER: abiturent-identity
+      JWT_AUDIENCE: abiturent
+      CATALOG_URL: http://catalog:3002
+      APPLICANT_URL: http://applicant:3003
+      RESULTS_URL: http://results:3005
+      EXAM_URL: http://exam:3004
+    ports:
+      - "3006:3006"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      identity:
+        condition: service_started
+      catalog:
+        condition: service_started
+
+  notification:
+    <<: *node-service
+    container_name: abiturent-notification
+    build:
+      context: ..
+      dockerfile: infra/docker/Dockerfile.node-service
+      args:
+        SERVICE_DIR: notification-service
+        WORKSPACE: "@abiturent/notification-service"
+        PORT: "3007"
+    environment:
+      PORT: "3007"
+      NODE_ENV: production
+      LOG_LEVEL: info
+      DATABASE_URL: postgresql://abiturent:abiturent@postgres:5432/notification
+      JWKS_URL: http://identity:3001/.well-known/jwks.json
+      JWT_ISSUER: abiturent-identity
+      JWT_AUDIENCE: abiturent
+      RABBITMQ_URL: amqp://abiturent:abiturent@rabbitmq:5672
+      IDENTITY_URL: http://identity:3001
+      INTERNAL_AUDIT_TOKEN: dev-audit-token
+    ports:
+      - "3007:3007"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      identity:
+        condition: service_started
+
+  analytics:
+    <<: *node-service
+    container_name: abiturent-analytics
+    build:
+      context: ..
+      dockerfile: infra/docker/Dockerfile.node-service
+      args:
+        SERVICE_DIR: analytics-service
+        WORKSPACE: "@abiturent/analytics-service"
+        PORT: "3008"
+    environment:
+      PORT: "3008"
+      NODE_ENV: production
+      LOG_LEVEL: info
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_USER: abiturent
+      CLICKHOUSE_PASSWORD: abiturent
+    ports:
+      - "3008:3008"
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+
+  ai:
+    container_name: abiturent-ai
+    restart: unless-stopped
+    build:
+      context: ../apps/ai-service
+      dockerfile: Dockerfile
+    environment:
+      PORT: "3010"
+      HOST: 0.0.0.0
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://openrouter.ai/api/v1}
+      OPENAI_MODEL: ${OPENAI_MODEL:-nvidia/nemotron-3.5-super-vl:free}
+      # AI downloads scans server-side inside the Docker network
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: abiturent
+      MINIO_SECRET_KEY: abiturent_secret
+      MINIO_BUCKET_DOCUMENTS: documents
+      MINIO_SECURE: "false"
+    ports:
+      - "3010:3010"
+    networks:
+      - abiturent
+    depends_on:
+      minio:
+        condition: service_healthy
+
+  web:
+    container_name: abiturent-web
+    restart: unless-stopped
+    build:
+      context: ..
+      dockerfile: infra/docker/Dockerfile.web
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: 0.0.0.0
+      IDENTITY_URL: http://identity:3001
+      CATALOG_URL: http://catalog:3002
+      APPLICANT_URL: http://applicant:3003
+      EXAM_URL: http://exam:3004
+      RESULTS_URL: http://results:3005
+      CHANCES_URL: http://chances:3006
+      NOTIFICATION_URL: http://notification:3007
+    ports:
+      - "3000:3000"
+    networks:
+      - abiturent
+    depends_on:
+      - identity
+      - catalog
+      - applicant
+      - exam
+      - results
+      - chances
+      - notification
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.web.rule=Host(`localhost`) || Host(`web.localhost`)
+      - traefik.http.services.web.loadbalancer.server.port=3000

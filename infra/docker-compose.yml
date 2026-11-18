@@ -1,8 +1,9 @@
 name: abiturent
 
-# Infra-only compose: Postgres, Redis, RabbitMQ, MinIO, ClickHouse, Traefik.
-# Node microservices run on the host — `npm run dev:services` (ports 3001–3008).
-# App images in Docker are optional later (see apps/*/Dockerfile where present).
+# Infrastructure: Postgres, Redis, RabbitMQ, MinIO, ClickHouse, Traefik.
+# Application containers (web + microservices + ai): see docker-compose.apps.yml
+#   npm run docker:up
+# Local hybrid (infra in Docker, Node on host): npm run infra:up && npm run dev:services
 
 networks:
   abiturent:

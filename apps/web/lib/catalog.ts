@@ -78,12 +78,10 @@ export function latestPassingScore(
   return [...scores].sort((a, b) => b.year - a.year)[0] ?? null;
 }
 
-/** Public catalog changes rarely — short ISR beats blanket no-store. */
-const CATALOG_REVALIDATE_SECONDS = 60;
-
 export async function fetchCatalogSpecialties(): Promise<CatalogSpecialty[]> {
+  // no-store: avoid baking build-time failures into the Docker image
   const res = await fetch(`${getCatalogUrl()}/specialties`, {
-    next: { revalidate: CATALOG_REVALIDATE_SECONDS },
+    cache: "no-store",
   });
   if (!res.ok) {
     throw new Error("Не удалось загрузить специальности");
@@ -93,7 +91,7 @@ export async function fetchCatalogSpecialties(): Promise<CatalogSpecialty[]> {
 
 export async function fetchCatalogSubjects(): Promise<CatalogSubject[]> {
   const res = await fetch(`${getCatalogUrl()}/subjects`, {
-    next: { revalidate: CATALOG_REVALIDATE_SECONDS },
+    cache: "no-store",
   });
   if (!res.ok) {
     throw new Error("Не удалось загрузить предметы");

@@ -1,0 +1,67 @@
+# syntax=docker/dockerfile:1
+# Build from repository root:
+#   docker build -f infra/docker/Dockerfile.node-service \
+#     --build-arg SERVICE_DIR=identity-service \
+#     --build-arg WORKSPACE=@abiturent/identity-service \
+#     --build-arg PORT=3001 .
+#
+# SERVICE_DIR / WORKSPACE are declared AFTER npm install so BuildKit can
+# reuse the heavy install layer across all microservices.
+
+ARG PORT=3001
+
+FROM node:22-alpine AS builder
+WORKDIR /app
+
+RUN apk add --no-cache python3 make g++ openssl libc6-compat
+
+COPY package.json package-lock.json ./
+COPY tsconfig.base.json ./
+COPY packages ./packages
+COPY apps ./apps
+
+# Shared across all services (do not put SERVICE_DIR before this)
+RUN npm install
+RUN npm run build:packages
+# exam-service imports applicant/catalog Prisma clients at runtime
+RUN npx prisma generate --schema=apps/applicant-service/prisma/schema.prisma \
+  && npx prisma generate --schema=apps/catalog-service/prisma/schema.prisma \
+  && npx prisma generate --schema=apps/exam-service/prisma/schema.prisma
+
+ARG SERVICE_DIR=identity-service
+ARG WORKSPACE=@abiturent/identity-service
+
+WORKDIR /app/apps/${SERVICE_DIR}
+RUN if [ -f prisma/schema.prisma ]; then npx prisma generate; fi
+
+WORKDIR /app
+RUN npm run build -w ${WORKSPACE}
+RUN npm prune --omit=dev
+
+FROM node:22-alpine AS runner
+ARG SERVICE_DIR=identity-service
+ARG PORT=3001
+WORKDIR /app
+
+RUN apk add --no-cache openssl libc6-compat \
+  && addgroup -S abiturent && adduser -S abiturent -G abiturent
+
+ENV NODE_ENV=production
+ENV PORT=${PORT}
+
+COPY --from=builder --chown=abiturent:abiturent /app/package.json /app/package-lock.json ./
+COPY --from=builder --chown=abiturent:abiturent /app/node_modules ./node_modules
+COPY --from=builder --chown=abiturent:abiturent /app/packages ./packages
+COPY --from=builder --chown=abiturent:abiturent /app/apps/${SERVICE_DIR} ./apps/${SERVICE_DIR}
+# Cross-service Prisma clients used by exam-service (harmless extras for others)
+COPY --from=builder --chown=abiturent:abiturent /app/apps/applicant-service/generated ./apps/applicant-service/generated
+COPY --from=builder --chown=abiturent:abiturent /app/apps/catalog-service/generated ./apps/catalog-service/generated
+
+COPY infra/docker/node-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+USER abiturent
+WORKDIR /app/apps/${SERVICE_DIR}
+EXPOSE ${PORT}
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["node", "dist/index.js"]

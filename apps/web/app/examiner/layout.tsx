@@ -1,6 +1,8 @@
 import { RequireAuth } from "@/components/auth/RequireAuth";
 import { ExaminerShell } from "@/components/layout/ExaminerShell";
 
+export const dynamic = "force-dynamic";
+
 export default function ExaminerLayout({
   children,
 }: {

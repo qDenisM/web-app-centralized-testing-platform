@@ -60,7 +60,30 @@ design/                   — макеты кабинетов
 - npm (workspaces)
 - Docker + Docker Compose
 
-## Быстрый старт (локально)
+## Быстрый старт
+
+### Вариант A — всё в Docker (инфра + приложения)
+
+Нужны JWT-ключи identity (один раз на хосте):
+
+```bash
+npm install
+npm run keys:generate -w @abiturent/identity-service
+npm run docker:up
+```
+
+| Контейнер | Порт |
+|-----------|------|
+| web | http://localhost:3000 |
+| identity … notification, analytics, ai | 3001–3008, 3010 |
+| Postgres / RabbitMQ / MinIO / … | как в таблице ниже |
+
+Миграции Prisma выполняются при старте контейнеров (`prisma migrate deploy`).  
+Остановка: `npm run docker:down`. Логи: `npm run docker:logs`.
+
+> Первый `docker:up` долго собирает образы (monorepo build).
+
+### Вариант B — локально (инфра в Docker, Node на хосте)
 
 ### 1. Установка и пакеты
 

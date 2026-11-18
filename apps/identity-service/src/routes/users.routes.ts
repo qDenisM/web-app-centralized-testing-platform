@@ -115,8 +115,9 @@ usersRoutes.patch(
         data.phone = phone.length ? phone : null;
       }
 
-      const wantsPassword =
-        typeof body.newPassword === "string" && body.newPassword.length > 0;
+      const newPassword =
+        typeof body.newPassword === "string" ? body.newPassword : "";
+      const wantsPassword = newPassword.length > 0;
       if (wantsPassword) {
         if (typeof body.currentPassword !== "string" || !body.currentPassword) {
           throw AppError.badRequest("Нужен текущий пароль");
@@ -126,10 +127,10 @@ usersRoutes.patch(
         if (!ok) {
           throw AppError.unauthorized("Неверный текущий пароль");
         }
-        if (body.newPassword.length < 8) {
+        if (newPassword.length < 8) {
           throw AppError.badRequest("Новый пароль слишком короткий");
         }
-        data.passwordHash = await hashPassword(body.newPassword);
+        data.passwordHash = await hashPassword(newPassword);
       }
 
       if (Object.keys(data).length === 0) {
